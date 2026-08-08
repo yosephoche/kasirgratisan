@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, isStockManaged, type Product, type Category, type Transaction, type TransactionItemRecord } from '@/lib/db';
-import { useState, useRef, useEffect } from 'react';
+import { db, type Product, type Category, type Transaction, type TransactionItemRecord } from '@/lib/db';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, Plus, Minus, ShoppingCart, X, Percent, Tag, CreditCard, Banknote, Check, ScanBarcode, Package as PackageIcon, ClipboardList, Save, Pencil, User, Hash, Trash2, Barcode, Printer } from 'lucide-react';
 import Receipt from '@/components/Receipt';
 import KitchenTicket from '@/components/KitchenTicket';
@@ -23,6 +23,8 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/use-auth';
 import { trackEvent } from '@/lib/analytics';
 import CustomerPicker from '@/components/CustomerPicker';
+import { applyRecipeAwareStockDelta, buildRecipeCalcContext, getAvailableQty, computeHppFinal } from '@/lib/recipe';
+import { computeOverheadPerUnit } from '@/lib/overhead';
 import LockedPage from '@/components/LockedPage';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -114,6 +116,12 @@ export default function Kasir() {
   });
 
   const products = useLiveQuery(() => db.products.where('isDeleted').equals(0).toArray());
+  const productRecipes = useLiveQuery(() => db.productRecipes.where('isDeleted').equals(0).toArray());
+  const materials = useLiveQuery(() => db.materials.where('isDeleted').equals(0).toArray());
+  const availCtx = useMemo(() => buildRecipeCalcContext(productRecipes ?? [], materials ?? []), [productRecipes, materials]);
+  const overheadConfig = useLiveQuery(() => db.overheadConfig.where('isDeleted').equals(0).first());
+  const overheadPerUnit = useMemo(() => overheadConfig ? computeOverheadPerUnit(overheadConfig) : 0, [overheadConfig]);
+  const hppFinal = (p: Product) => computeHppFinal(p, availCtx, overheadPerUnit);
   const categories = useLiveQuery(() => db.categories.where('isDeleted').equals(0).toArray());
   const paymentMethods = useLiveQuery(() => db.paymentMethods.toArray());
   const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
@@ -130,7 +138,8 @@ export default function Kasir() {
   const filtered = products?.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchCategory = filterCategory === 'all' || p.categoryId === Number(filterCategory);
-    const available = !isStockManaged(p) || p.stock > 0 || cartProductIds.has(p.id!);
+    const avail = getAvailableQty(p, availCtx);
+    const available = !Number.isFinite(avail) || avail > 0 || cartProductIds.has(p.id!);
     return matchSearch && matchCategory && available;
   }) ?? [];
 
@@ -155,7 +164,8 @@ export default function Kasir() {
     setCart(prev => {
       const existing = prev.find(c => c.product.id === product.id);
       if (existing) {
-        if (isStockManaged(product) && existing.qty >= product.stock) {
+        const avail = getAvailableQty(product, availCtx);
+        if (Number.isFinite(avail) && existing.qty >= avail) {
           toast.error(t('cashier.toast.stockLow'));
           return prev;
         }
@@ -170,7 +180,8 @@ export default function Kasir() {
       if (c.product.id !== productId) return c;
       const newQty = c.qty + delta;
       if (newQty <= 0) return c;
-      if (isStockManaged(c.product) && newQty > c.product.stock) { toast.error(t('cashier.toast.stockLow')); return c; }
+      const avail = getAvailableQty(c.product, availCtx);
+      if (Number.isFinite(avail) && newQty > avail) { toast.error(t('cashier.toast.stockLow')); return c; }
       return { ...c, qty: newQty };
     }));
   };
@@ -250,7 +261,7 @@ export default function Kasir() {
   const debtAmount = useDebt ? Math.max(0, total - checkoutPaidAmount) : 0;
   const change = useDebt ? 0 : paidAmount - total;
   const totalItemDiscount = cart.reduce((sum, item) => sum + getItemDiscountAmount(item), 0);
-  const totalProfit = cart.reduce((sum, item) => sum + (item.product.price - item.product.hpp) * item.qty, 0) - totalItemDiscount - txDiscountAmount;
+  const totalProfit = cart.reduce((sum, item) => sum + (item.product.price - hppFinal(item.product)) * item.qty, 0) - totalItemDiscount - txDiscountAmount;
 
   // === Open Bill Operations ===
 
@@ -284,7 +295,7 @@ export default function Kasir() {
         productName: c.product.name,
         quantity: c.qty,
         price: c.product.price,
-        hpp: c.product.hpp,
+        hpp: hppFinal(c.product),
         discountType: c.discountType,
         discountValue: c.discountValue,
         discountAmount: getItemDiscountAmount(c),
@@ -293,27 +304,24 @@ export default function Kasir() {
       }));
       await db.transactionItems.bulkAdd(itemRecords);
 
-      // Adjust stock deltas
-      for (const cartItem of cart) {
-        if (!isStockManaged(cartItem.product)) continue;
-        const oldItem = oldItems.find(oi => oi.productId === cartItem.product.id);
-        const oldQty = oldItem?.quantity ?? 0;
-        const newQty = cartItem.qty;
-        const delta = newQty - oldQty;
-        if (delta !== 0) {
-          await db.products.update(cartItem.product.id!, { stock: cartItem.product.stock - delta, updatedAt: new Date() });
-        }
-      }
-      // Restore stock for removed items that were in old bill
-      for (const oldItem of oldItems) {
-        const stillInCart = cart.find(c => c.product.id === oldItem.productId);
-        if (!stillInCart) {
-          const product = await db.products.get(oldItem.productId);
-          if (product && isStockManaged(product)) {
-            await db.products.update(oldItem.productId, { stock: product.stock + oldItem.quantity });
+      // Adjust stock deltas (resep-aware)
+      await db.transaction('rw', db.products, db.productRecipes, db.materials, async () => {
+        for (const cartItem of cart) {
+          const oldItem = oldItems.find(oi => oi.productId === cartItem.product.id);
+          const oldQty = oldItem?.quantity ?? 0;
+          const delta = cartItem.qty - oldQty;
+          if (delta !== 0) {
+            await applyRecipeAwareStockDelta(cartItem.product.id!, delta);
           }
         }
-      }
+        // Restore stock for removed items that were in old bill
+        for (const oldItem of oldItems) {
+          const stillInCart = cart.find(c => c.product.id === oldItem.productId);
+          if (!stillInCart) {
+            await applyRecipeAwareStockDelta(oldItem.productId, -oldItem.quantity);
+          }
+        }
+      });
 
       const updatedTx = await db.transactions.get(editingTxId);
       toast.success(t('cashier.toast.billUpdated', { receiptNumber: updatedTx?.receiptNumber }));
@@ -354,7 +362,7 @@ export default function Kasir() {
         productName: c.product.name,
         quantity: c.qty,
         price: c.product.price,
-        hpp: c.product.hpp,
+        hpp: hppFinal(c.product),
         discountType: c.discountType,
         discountValue: c.discountValue,
         discountAmount: getItemDiscountAmount(c),
@@ -363,10 +371,11 @@ export default function Kasir() {
       }));
       await db.transactionItems.bulkAdd(itemRecords);
 
-      for (const item of cart) {
-        if (!isStockManaged(item.product)) continue;
-        await db.products.update(item.product.id!, { stock: item.product.stock - item.qty, updatedAt: new Date() });
-      }
+      await db.transaction('rw', db.products, db.productRecipes, db.materials, async () => {
+        for (const item of cart) {
+          await applyRecipeAwareStockDelta(item.product.id!, item.qty);
+        }
+      });
 
       toast.success(t('cashier.toast.billSaved', { receiptNumber }));
 
@@ -416,12 +425,11 @@ export default function Kasir() {
   const cancelOpenBill = async (tx: Transaction) => {
     if (!tx.id) return;
     const items = await db.transactionItems.where('transactionId').equals(tx.id).toArray();
-    for (const item of items) {
-      const product = await db.products.get(item.productId);
-      if (product && isStockManaged(product)) {
-        await db.products.update(item.productId, { stock: product.stock + item.quantity });
+    await db.transaction('rw', db.products, db.productRecipes, db.materials, async () => {
+      for (const item of items) {
+        await applyRecipeAwareStockDelta(item.productId, -item.quantity);
       }
-    }
+    });
     await db.transactionItems.where('transactionId').equals(tx.id).delete();
     await db.transactions.delete(tx.id);
     toast.success(t('cashier.toast.billCancelled', { receiptNumber: tx.receiptNumber }));
@@ -510,7 +518,7 @@ export default function Kasir() {
         productName: c.product.name,
         quantity: c.qty,
         price: c.product.price,
-        hpp: c.product.hpp,
+        hpp: hppFinal(c.product),
         discountType: c.discountType,
         discountValue: c.discountValue,
         discountAmount: getItemDiscountAmount(c),
@@ -519,26 +527,23 @@ export default function Kasir() {
       }));
       await db.transactionItems.bulkAdd(itemRecords);
 
-      // Adjust stock deltas (same as saveOpenBill)
-      for (const cartItem of cart) {
-        if (!isStockManaged(cartItem.product)) continue;
-        const oldItem = oldItems.find(oi => oi.productId === cartItem.product.id);
-        const oldQty = oldItem?.quantity ?? 0;
-        const newQty = cartItem.qty;
-        const delta = newQty - oldQty;
-        if (delta !== 0) {
-          await db.products.update(cartItem.product.id!, { stock: cartItem.product.stock - delta, updatedAt: new Date() });
-        }
-      }
-      for (const oldItem of oldItems) {
-        const stillInCart = cart.find(c => c.product.id === oldItem.productId);
-        if (!stillInCart) {
-          const product = await db.products.get(oldItem.productId);
-          if (product && isStockManaged(product)) {
-            await db.products.update(oldItem.productId, { stock: product.stock + oldItem.quantity });
+      // Adjust stock deltas (resep-aware, same as saveOpenBill)
+      await db.transaction('rw', db.products, db.productRecipes, db.materials, async () => {
+        for (const cartItem of cart) {
+          const oldItem = oldItems.find(oi => oi.productId === cartItem.product.id);
+          const oldQty = oldItem?.quantity ?? 0;
+          const delta = cartItem.qty - oldQty;
+          if (delta !== 0) {
+            await applyRecipeAwareStockDelta(cartItem.product.id!, delta);
           }
         }
-      }
+        for (const oldItem of oldItems) {
+          const stillInCart = cart.find(c => c.product.id === oldItem.productId);
+          if (!stillInCart) {
+            await applyRecipeAwareStockDelta(oldItem.productId, -oldItem.quantity);
+          }
+        }
+      });
 
       const updatedTx = await db.transactions.get(editingTxId);
       toast.success(t('cashier.toast.transactionSuccess', { receiptNumber: updatedTx?.receiptNumber }));
@@ -591,7 +596,7 @@ export default function Kasir() {
         productName: c.product.name,
         quantity: c.qty,
         price: c.product.price,
-        hpp: c.product.hpp,
+        hpp: hppFinal(c.product),
         discountType: c.discountType,
         discountValue: c.discountValue,
         discountAmount: getItemDiscountAmount(c),
@@ -600,10 +605,11 @@ export default function Kasir() {
       }));
       await db.transactionItems.bulkAdd(itemRecords);
 
-      for (const item of cart) {
-        if (!isStockManaged(item.product)) continue;
-        await db.products.update(item.product.id!, { stock: item.product.stock - item.qty, updatedAt: new Date() });
-      }
+      await db.transaction('rw', db.products, db.productRecipes, db.materials, async () => {
+        for (const item of cart) {
+          await applyRecipeAwareStockDelta(item.product.id!, item.qty);
+        }
+      });
 
       toast.success(t('cashier.toast.transactionSuccess', { receiptNumber }));
       trackEvent('create_transaction');
@@ -624,7 +630,8 @@ export default function Kasir() {
     setScannerOpen(false);
     const product = products?.find(p => p.sku === barcode || p.barcode === barcode);
     if (product) {
-      if (isStockManaged(product) && product.stock <= 0) {
+      const avail = getAvailableQty(product, availCtx);
+      if (Number.isFinite(avail) && avail <= 0) {
         toast.error(t('cashier.toast.productOutOfStock', { name: product.name }));
         return;
       }
@@ -641,7 +648,8 @@ export default function Kasir() {
       setScanInput('');
       const product = products?.find(p => p.sku === code || p.barcode === code);
       if (product) {
-        if (isStockManaged(product) && product.stock <= 0) {
+        const avail = getAvailableQty(product, availCtx);
+        if (Number.isFinite(avail) && avail <= 0) {
           toast.error(t('cashier.toast.productOutOfStock', { name: product.name }));
           return;
         }
@@ -771,8 +779,8 @@ export default function Kasir() {
                       </p>
                     )}
                     <div className="flex justify-between items-center mt-1">
-                      {isStockManaged(p) ? (
-                        <p className="text-[10px] text-muted-foreground">{t('cashier.productCard.stock', { stock: p.stock, unit: p.unit })}</p>
+                      {Number.isFinite(getAvailableQty(p, availCtx)) ? (
+                        <p className="text-[10px] text-muted-foreground">{t('cashier.productCard.stock', { stock: getAvailableQty(p, availCtx), unit: p.unit })}</p>
                       ) : (
                         <p className="text-[10px] text-primary">{t('cashier.productCard.alwaysAvailable')}</p>
                       )}
@@ -802,8 +810,8 @@ export default function Kasir() {
                         {p.description}
                       </p>
                     )}
-                    {isStockManaged(p) ? (
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{t('cashier.productCard.stock', { stock: p.stock, unit: p.unit })}</p>
+                    {Number.isFinite(getAvailableQty(p, availCtx)) ? (
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{t('cashier.productCard.stock', { stock: getAvailableQty(p, availCtx), unit: p.unit })}</p>
                     ) : (
                       <p className="text-[10px] text-primary mt-0.5">{t('cashier.productCard.alwaysAvailable')}</p>
                     )}
@@ -857,10 +865,11 @@ export default function Kasir() {
                         onBlur={e => {
                           const val = parseInt(e.target.value);
                           if (!isNaN(val) && val >= 1) {
-                            if (isStockManaged(item.product) && val > item.product.stock) {
-                              toast.error(t('cashier.toast.stockLowWithMax', { max: item.product.stock }));
-                              e.target.value = String(item.product.stock);
-                              setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: item.product.stock } : c));
+                            const avail = getAvailableQty(item.product, availCtx);
+                            if (Number.isFinite(avail) && val > avail) {
+                              toast.error(t('cashier.toast.stockLowWithMax', { max: avail }));
+                              e.target.value = String(avail);
+                              setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: avail } : c));
                             } else {
                               setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: val } : c));
                             }
@@ -1071,10 +1080,11 @@ export default function Kasir() {
                         onBlur={e => {
                           const val = parseInt(e.target.value);
                           if (!isNaN(val) && val >= 1) {
-                            if (isStockManaged(item.product) && val > item.product.stock) {
-                              toast.error(t('cashier.toast.stockLowWithMax', { max: item.product.stock }));
-                              e.target.value = String(item.product.stock);
-                              setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: item.product.stock } : c));
+                            const avail = getAvailableQty(item.product, availCtx);
+                            if (Number.isFinite(avail) && val > avail) {
+                              toast.error(t('cashier.toast.stockLowWithMax', { max: avail }));
+                              e.target.value = String(avail);
+                              setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: avail } : c));
                             } else {
                               setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: val } : c));
                             }

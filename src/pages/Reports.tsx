@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { useEffect, useState } from 'react';
-import { BarChart3, TrendingUp, ShoppingCart, Package, DollarSign, ArrowDown, ArrowUp, Minus, Wallet, CreditCard, Download, Printer } from 'lucide-react';
+import { BarChart3, TrendingUp, ShoppingCart, Package, DollarSign, ArrowDown, ArrowUp, Minus, Wallet, CreditCard, Download, Printer, Calculator } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
+import { computeOverheadPerUnit, computeTotalOverheadPerMonth } from '@/lib/overhead';
 import { useAuth } from '@/hooks/use-auth';
 import LockedPage from '@/components/LockedPage';
 import ExportReportDialog from '@/components/reports/ExportReportDialog';
@@ -84,6 +85,19 @@ export default function Laporan() {
 
   const paymentMethods = useLiveQuery(() => db.paymentMethods.toArray());
 
+  // Rekonsiliasi overhead: selalu basis bulan kalender berjalan (§H.8), terlepas dari filter periode di atas.
+  const overheadConfig = useLiveQuery(() => db.overheadConfig.where('isDeleted').equals(0).first());
+  const monthRange = { start: startOfMonth(new Date()), end: endOfMonth(new Date()) };
+  const monthTransactions = useLiveQuery(async () => {
+    const all = await db.transactions.where('date').between(monthRange.start, monthRange.end, true, true).toArray();
+    return all.filter(t => t.status !== 'open');
+  }, [monthRange.start.getTime(), monthRange.end.getTime()]);
+  const monthTxItems = useLiveQuery(async () => {
+    if (!monthTransactions || monthTransactions.length === 0) return [];
+    const txIds = monthTransactions.map(t => t.id!).filter(Boolean);
+    return db.transactionItems.where('transactionId').anyOf(txIds).toArray();
+  }, [monthTransactions]);
+
   if (!can('view_reports')) {
     return <LockedPage title={t('locked.title')} permissionLabel={t('locked.permissionLabel')} />;
   }
@@ -108,6 +122,13 @@ export default function Laporan() {
   const appliedExpenses = includeExpenses ? totalExpenses : 0;
   const netProfit = grossProfit - appliedExpenses;
   const netMarginPercent = netSales > 0 ? (netProfit / netSales * 100) : 0;
+
+  // Rekonsiliasi overhead (absorbed vs actual) — basis bulan kalender berjalan (§H.8)
+  const unitsSoldThisMonth = (monthTxItems ?? []).reduce((s, item) => s + item.quantity, 0);
+  const overheadPerUnit = overheadConfig ? computeOverheadPerUnit(overheadConfig) : 0;
+  const overheadAbsorbed = overheadPerUnit * unitsSoldThisMonth;
+  const totalOverheadActual = overheadConfig ? computeTotalOverheadPerMonth(overheadConfig) : 0;
+  const overheadVariance = totalOverheadActual - overheadAbsorbed;
 
   const expenseByCategory: Record<string, { name: string; icon: string; color: string; amount: number }> = {};
   expenses?.forEach(e => {
@@ -428,6 +449,44 @@ export default function Laporan() {
           </div>
         </CardContent>
       </Card>
+
+      {overheadConfig && (
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <Calculator className="w-4 h-4" />
+              {t('overheadReconciliation.title')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span>{t('overheadReconciliation.unitsSold')}</span>
+              <span className="font-semibold">{unitsSoldThisMonth.toLocaleString(numberLocale)}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span>{t('overheadReconciliation.absorbed')}</span>
+              <span className="font-semibold">{rp(overheadAbsorbed)}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span>{t('overheadReconciliation.actual')}</span>
+              <span className="font-semibold">{rp(totalOverheadActual)}</span>
+            </div>
+            <div className="flex justify-between items-center text-base border-t pt-2">
+              <span className="font-bold">{t('overheadReconciliation.variance')}</span>
+              <span className={`font-bold ${overheadVariance > 0 ? 'text-destructive' : overheadVariance < 0 ? 'text-success' : ''}`}>
+                {overheadVariance > 0 ? '+' : ''}{rp(overheadVariance)}
+              </span>
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-snug">
+              {overheadVariance > 0
+                ? t('overheadReconciliation.underAbsorbedHint')
+                : overheadVariance < 0
+                  ? t('overheadReconciliation.overAbsorbedHint')
+                  : t('overheadReconciliation.balancedHint')}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {topExpenseCategories.length > 0 && includeExpenses && (
         <Card className="border-0 shadow-sm">

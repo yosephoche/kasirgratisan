@@ -101,6 +101,10 @@
       "title": "Supplier",
       "description": "Kelola data supplier"
     },
+    "material": {
+      "title": "Bahan & Packaging",
+      "description": "Kelola master data bahan baku & packaging untuk resep"
+    },
     "customers": {
       "title": "Pelanggan",
       "description": "Kelola data pelanggan"
@@ -153,6 +157,10 @@
       "description": "Atur teks footer dan cetak logo pada struk belanja",
       "placeholder": "Contoh: Terima kasih atas kunjungan Anda!",
       "saveSuccess": "Pengaturan struk disimpan"
+    },
+    "overhead": {
+      "title": "Overhead Workspace",
+      "description": "Hitung biaya overhead per porsi dari biaya tetap bulanan"
     },
     "stockOpname": {
       "title": "Stock Opname",
@@ -581,6 +589,56 @@
       "deleted": "Supplier dihapus"
     }
   },
+  "material": {
+    "locked": {
+      "title": "Bahan & Packaging",
+      "permissionLabel": "Kelola Stok Masuk"
+    },
+    "title": "Bahan & Packaging",
+    "add": "Tambah",
+    "searchPlaceholder": "Cari bahan/packaging...",
+    "count_zero": "{{count}} material",
+    "count_one": "{{count}} material",
+    "count_other": "{{count}} material",
+    "type": {
+      "all": "Semua",
+      "ingredient": "Bahan",
+      "packaging": "Packaging"
+    },
+    "empty": {
+      "title": "Belum ada bahan/packaging",
+      "add": "Tambah Material"
+    },
+    "card": {
+      "stock": "Stok: {{stock}} {{unit}}",
+      "cost": "Cost: Rp {{cost}}"
+    },
+    "dialog": {
+      "addTitle": "Tambah Material",
+      "editTitle": "Edit Material",
+      "nameLabel": "Nama *",
+      "namePlaceholder": "Contoh: Kopi Bubuk, Cup 12oz",
+      "typeLabel": "Tipe",
+      "unitLabel": "Satuan",
+      "stockLabel": "Stok Awal",
+      "costLabel": "Harga Pokok per Satuan",
+      "costHint": "Diperbarui otomatis (weighted average) tiap Stock In, atau isi manual di sini.",
+      "notesLabel": "Catatan",
+      "notesPlaceholder": "Catatan tambahan",
+      "save": "Simpan"
+    },
+    "deleteDialog": {
+      "title": "Hapus Material?",
+      "description": "Data material yang dihapus tidak bisa dikembalikan. Resep yang memakai material ini akan menampilkan \"bahan tidak ditemukan\".",
+      "cancel": "Batal",
+      "confirm": "Hapus"
+    },
+    "toast": {
+      "updated": "Material diperbarui",
+      "added": "Material ditambahkan",
+      "deleted": "Material dihapus"
+    }
+  },
   "customers": {
     "locked": {
       "title": "Pelanggan",
@@ -700,6 +758,11 @@
       "searchPlaceholder": "Cari supplier...",
       "all": "Semua Supplier"
     },
+    "typeFilter": {
+      "all": "Semua",
+      "product": "Produk",
+      "material": "Material"
+    },
     "count_zero": "{{count}} catatan",
     "count_one": "{{count}} catatan",
     "count_other": "{{count}} catatan",
@@ -711,7 +774,9 @@
     },
     "dialog": {
       "title": "Tambah Stock In",
+      "typeLabel": "Jenis Item",
       "productLabel": "Produk *",
+      "materialLabel": "Material *",
       "supplierLabel": "Supplier *",
       "quantityLabel": "Jumlah *",
       "quantityPlaceholder": "10",
@@ -1447,5 +1512,23 @@
     "failed": "Gagal mengirim laporan. Silakan coba lagi.",
     "networkError": "Terjadi kesalahan jaringan saat mengirim laporan.",
     "emptyError": "Silakan isi deskripsi kendala terlebih dahulu."
+  },
+  "overheadSettings": {
+    "title": "Overhead Workspace",
+    "description": "Masukkan biaya tetap bulanan & target penjualan. Hasilnya jadi default overhead per porsi untuk semua produk (bisa ditimpa per produk).",
+    "resultLabel": "Overhead per Unit",
+    "resultHint": "Total biaya overhead bulanan ÷ target penjualan bulanan",
+    "monthlyTargetUnitsLabel": "Target Penjualan per Bulan (pcs)",
+    "monthlyTargetUnitsHint": "Estimasi jumlah produk terjual per bulan",
+    "rentPerYearLabel": "Sewa Tempat (per Tahun)",
+    "utilitiesPerMonthLabel": "Listrik, Air, Internet (per Bulan)",
+    "marketingPerMonthLabel": "Marketing / Promosi (per Bulan)",
+    "insurancePerMonthLabel": "Asuransi (per Bulan)",
+    "salariesPerMonthLabel": "Gaji Karyawan (per Bulan)",
+    "equipmentMaintenancePerMonthLabel": "Perawatan Peralatan (per Bulan)",
+    "depreciationPerMonthLabel": "Penyusutan Aset (per Bulan)",
+    "otherPerMonthLabel": "Biaya Lain-lain (per Bulan)",
+    "saveSuccess": "Overhead Workspace disimpan",
+    "saveFailed": "Gagal menyimpan Overhead Workspace"
   }
 }

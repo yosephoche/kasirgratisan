@@ -18,6 +18,8 @@ import { trackEvent } from '@/lib/analytics';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/use-auth';
 import BarcodeScanner from '@/components/BarcodeScanner';
+import RecipeEditor from '@/components/RecipeEditor';
+import NumberInput from '@/components/NumberInput';
 import { useTranslation } from 'react-i18next';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { downloadOrShareFile } from '@/lib/file-utils';
@@ -76,6 +78,8 @@ export default function Produk() {
   const [barcode, setBarcode] = useState('');
   const [description, setDescription] = useState('');
   const [photo, setPhoto] = useState<string | undefined>(undefined);
+  const [overheadCost, setOverheadCost] = useState('');
+  const [overheadMode, setOverheadMode] = useState<'fixed' | 'percent'>('fixed');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const products = useLiveQuery(() => db.products.where('isDeleted').equals(0).toArray());
@@ -111,12 +115,14 @@ export default function Produk() {
     }
     setEditProduct(null);
     setName(''); setSku(''); setCategoryId(categories[0]?.id?.toString() ?? ''); setPrice(''); setHpp(''); setStock(''); setTrackStock(true); setUnit('pcs'); setBarcode(''); setDescription(''); setPhoto(undefined);
+    setOverheadCost(''); setOverheadMode('fixed');
     setDialogOpen(true);
   };
 
   const openEdit = (p: Product) => {
     setEditProduct(p);
     setName(p.name); setSku(p.sku); setCategoryId(p.categoryId.toString()); setPrice(p.price.toString()); setHpp(p.hpp.toString()); setStock(p.stock.toString()); setTrackStock(isStockManaged(p)); setUnit(p.unit); setBarcode(p.barcode ?? ''); setDescription(p.description ?? ''); setPhoto(p.photo);
+    setOverheadCost(p.overheadCost !== undefined ? p.overheadCost.toString() : ''); setOverheadMode(p.overheadMode ?? 'fixed');
     setDialogOpen(true);
   };
 
@@ -163,6 +169,8 @@ export default function Produk() {
       description: description.trim() || undefined,
       barcode: barcode.trim() || undefined,
       photo: photo || undefined,
+      overheadCost: overheadCost.trim() !== '' ? Number(overheadCost) : undefined,
+      overheadMode: overheadCost.trim() !== '' ? overheadMode : undefined,
       updatedAt: new Date(),
       updatedBy: currentUser?.id,
     };
@@ -855,6 +863,36 @@ export default function Produk() {
               />
               <p className="text-[10px] text-muted-foreground text-right">{description.length}{t('dialog.descriptionCounter')}</p>
             </div>
+
+            <div className="space-y-2 rounded-xl border border-border p-3">
+              <div>
+                <Label className="text-sm">{t('dialog.overheadTitle')}</Label>
+                <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{t('dialog.overheadHint')}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t('dialog.overheadCostLabel')}</Label>
+                  <NumberInput value={overheadCost} onChange={setOverheadCost} placeholder={t('dialog.overheadCostPlaceholder')} className="h-11" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t('dialog.overheadModeLabel')}</Label>
+                  <Select value={overheadMode} onValueChange={(v) => setOverheadMode(v as 'fixed' | 'percent')}>
+                    <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixed">{t('dialog.overheadModeFixed')}</SelectItem>
+                      <SelectItem value="percent">{t('dialog.overheadModePercent')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {editProduct?.id ? (
+              <RecipeEditor productId={editProduct.id} />
+            ) : (
+              <p className="text-[11px] text-muted-foreground">{t('recipe.saveFirstHint')}</p>
+            )}
+
             <Button className="w-full h-12 text-base font-semibold" onClick={handleSave} disabled={!name.trim() || !categoryId || !sku.trim()}>
               {editProduct ? t('saveButton.edit') : t('saveButton.add')}
             </Button>

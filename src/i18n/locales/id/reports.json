@@ -47,6 +47,16 @@
   "expenses": {
     "title": "Pengeluaran per Kategori"
   },
+  "overheadReconciliation": {
+    "title": "Rekonsiliasi Overhead (Bulan Ini)",
+    "unitsSold": "Unit Terjual Bulan Ini",
+    "absorbed": "Overhead Terabsorb",
+    "actual": "Overhead Aktual",
+    "variance": "Selisih",
+    "underAbsorbedHint": "Under-absorbed: laba tercatat lebih optimis dari kenyataan. Pertimbangkan naikkan tarif/target di Overhead Workspace.",
+    "overAbsorbedHint": "Over-absorbed: laba tercatat lebih konservatif dari kenyataan. Pertimbangkan turunkan tarif/target di Overhead Workspace.",
+    "balancedHint": "Overhead terabsorb sesuai biaya aktual bulan ini."
+  },
   "chart": {
     "title": "Tren Penjualan",
     "tooltipLabel": "Penjualan"

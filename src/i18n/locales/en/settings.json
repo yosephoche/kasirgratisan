@@ -101,6 +101,10 @@
       "title": "Suppliers",
       "description": "Manage supplier data"
     },
+    "material": {
+      "title": "Ingredients & Packaging",
+      "description": "Manage raw ingredient & packaging master data for recipes"
+    },
     "customers": {
       "title": "Customers",
       "description": "Manage customer data"
@@ -153,6 +157,10 @@
       "description": "Configure receipt footer text and logo printing options",
       "placeholder": "Example: Thank you for your visit!",
       "saveSuccess": "Receipt settings saved"
+    },
+    "overhead": {
+      "title": "Overhead Workspace",
+      "description": "Calculate overhead cost per serving from monthly fixed costs"
     },
     "stockOpname": {
       "title": "Stock Opname",
@@ -581,6 +589,56 @@
       "deleted": "Supplier deleted"
     }
   },
+  "material": {
+    "locked": {
+      "title": "Ingredients & Packaging",
+      "permissionLabel": "Manage Stock In/Out"
+    },
+    "title": "Ingredients & Packaging",
+    "add": "Add",
+    "searchPlaceholder": "Search ingredient/packaging...",
+    "count_zero": "{{count}} materials",
+    "count_one": "{{count}} material",
+    "count_other": "{{count}} materials",
+    "type": {
+      "all": "All",
+      "ingredient": "Ingredient",
+      "packaging": "Packaging"
+    },
+    "empty": {
+      "title": "No ingredients/packaging yet",
+      "add": "Add Material"
+    },
+    "card": {
+      "stock": "Stock: {{stock}} {{unit}}",
+      "cost": "Cost: Rp {{cost}}"
+    },
+    "dialog": {
+      "addTitle": "Add Material",
+      "editTitle": "Edit Material",
+      "nameLabel": "Name *",
+      "namePlaceholder": "e.g. Ground Coffee, 12oz Cup",
+      "typeLabel": "Type",
+      "unitLabel": "Unit",
+      "stockLabel": "Initial Stock",
+      "costLabel": "Cost per Unit",
+      "costHint": "Auto-updated (weighted average) on every Stock In, or fill it in manually here.",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Additional notes",
+      "save": "Save"
+    },
+    "deleteDialog": {
+      "title": "Delete Material?",
+      "description": "Deleted material data cannot be recovered. Recipes using this material will show \"ingredient not found\".",
+      "cancel": "Cancel",
+      "confirm": "Delete"
+    },
+    "toast": {
+      "updated": "Material updated",
+      "added": "Material added",
+      "deleted": "Material deleted"
+    }
+  },
   "customers": {
     "locked": {
       "title": "Customers",
@@ -700,6 +758,11 @@
       "searchPlaceholder": "Search supplier...",
       "all": "All Suppliers"
     },
+    "typeFilter": {
+      "all": "All",
+      "product": "Product",
+      "material": "Material"
+    },
     "count_zero": "{{count}} records",
     "count_one": "{{count}} record",
     "count_other": "{{count}} records",
@@ -711,7 +774,9 @@
     },
     "dialog": {
       "title": "Add Stock In",
+      "typeLabel": "Item Type",
       "productLabel": "Product *",
+      "materialLabel": "Material *",
       "supplierLabel": "Supplier *",
       "quantityLabel": "Quantity *",
       "quantityPlaceholder": "10",
@@ -1448,5 +1513,23 @@
     "failed": "Failed to submit report. Please try again.",
     "networkError": "A network error occurred while submitting the report.",
     "emptyError": "Please fill in the issue description first."
+  },
+  "overheadSettings": {
+    "title": "Overhead Workspace",
+    "description": "Enter monthly fixed costs & sales target. The result becomes the default overhead per serving for all products (can be overridden per product).",
+    "resultLabel": "Overhead per Unit",
+    "resultHint": "Total monthly overhead cost ÷ monthly sales target",
+    "monthlyTargetUnitsLabel": "Monthly Sales Target (pcs)",
+    "monthlyTargetUnitsHint": "Estimated number of products sold per month",
+    "rentPerYearLabel": "Rent (per Year)",
+    "utilitiesPerMonthLabel": "Electricity, Water, Internet (per Month)",
+    "marketingPerMonthLabel": "Marketing / Promotion (per Month)",
+    "insurancePerMonthLabel": "Insurance (per Month)",
+    "salariesPerMonthLabel": "Staff Salaries (per Month)",
+    "equipmentMaintenancePerMonthLabel": "Equipment Maintenance (per Month)",
+    "depreciationPerMonthLabel": "Asset Depreciation (per Month)",
+    "otherPerMonthLabel": "Other Costs (per Month)",
+    "saveSuccess": "Overhead Workspace saved",
+    "saveFailed": "Failed to save Overhead Workspace"
   }
 }

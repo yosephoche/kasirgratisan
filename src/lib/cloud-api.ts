@@ -450,20 +450,35 @@ export async function deleteStoreLogo(id: string): Promise<CloudStore> {
 export interface SyncPayload {
   categories?: any[];
   products?: any[];
+  suppliers?: any[];
+  units?: any[];
+  paymentMethods?: any[];
   customers?: any[];
   users?: any[];
   transactions?: any[];
   transactionItems?: any[];
+  stockIns?: any[];
+  stockOuts?: any[];
+  hppHistory?: any[];
   expenseCategories?: any[];
   expenses?: any[];
   debts?: any[];
   debtPayments?: any[];
   stockOpnames?: any[];
   stockOpnameItems?: any[];
+  productRecipes?: any[];
+  overheadConfig?: any[];
+  materials?: any[];
 }
 
 export interface SyncResponse {
   message: string;
+}
+
+export interface SyncPullResponse {
+  serverTime: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  changes: Record<string, any[]>;
 }
 
 export function hasCloudToken(): boolean {
@@ -474,12 +489,21 @@ export function hasCloudToken(): boolean {
   }
 }
 
-export async function syncStoreData(storeId: string, payload: SyncPayload): Promise<SyncResponse> {
+/** deviceId wajib — server pakai `(store_id, table_name, device_id, client_id)` sebagai kunci upsert agar local id per-device tidak collide. */
+export async function syncStoreData(storeId: string, payload: SyncPayload, deviceId: string): Promise<SyncResponse> {
   const res = await fetch(`${BASE_URL}/api/stores/${storeId}/sync`, {
     method: 'POST',
-    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    headers: { ...authHeaders(), 'Content-Type': 'application/json', 'X-Device-Id': deviceId },
     body: JSON.stringify(payload),
   });
+  if (!res.ok) await parseError(res);
+  return res.json();
+}
+
+/** Ambil perubahan server sejak `since` (ISO8601). Kosongkan `since` untuk full pull pertama kali. */
+export async function fetchPullSync(storeId: string, since?: string): Promise<SyncPullResponse> {
+  const qs = since ? `?since=${encodeURIComponent(since)}` : '';
+  const res = await fetch(`${BASE_URL}/api/stores/${storeId}/sync${qs}`, { headers: authHeaders() });
   if (!res.ok) await parseError(res);
   return res.json();
 }

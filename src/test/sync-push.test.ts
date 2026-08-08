@@ -78,8 +78,9 @@ describe('Incremental Data Sync PUSH', () => {
 
     // 4. Verify mock was called with correct payload
     expect(mockSyncStoreData).toHaveBeenCalledTimes(1);
-    const [storeId, payload] = mockSyncStoreData.mock.calls[0];
+    const [storeId, payload, deviceId] = mockSyncStoreData.mock.calls[0];
     expect(storeId).toBe('test-cloud-store-id');
+    expect(deviceId).toBe('test-device-id');
     expect(payload.categories).toHaveLength(1);
     expect(payload.categories?.[0].id).toBe(categoryId);
     expect(payload.products).toHaveLength(1);

@@ -47,6 +47,16 @@
   "expenses": {
     "title": "Expenses by Category"
   },
+  "overheadReconciliation": {
+    "title": "Overhead Reconciliation (This Month)",
+    "unitsSold": "Units Sold This Month",
+    "absorbed": "Overhead Absorbed",
+    "actual": "Actual Overhead",
+    "variance": "Variance",
+    "underAbsorbedHint": "Under-absorbed: recorded profit is more optimistic than reality. Consider raising the rate/target in Overhead Workspace.",
+    "overAbsorbedHint": "Over-absorbed: recorded profit is more conservative than reality. Consider lowering the rate/target in Overhead Workspace.",
+    "balancedHint": "Absorbed overhead matches this month's actual cost."
+  },
   "chart": {
     "title": "Sales Trend",
     "tooltipLabel": "Sales"

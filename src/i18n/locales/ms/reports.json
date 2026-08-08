@@ -47,6 +47,16 @@
   "expenses": {
     "title": "Perbelanjaan mengikut Kategori"
   },
+  "overheadReconciliation": {
+    "title": "Rekonsiliasi Overhead (Bulan Ini)",
+    "unitsSold": "Unit Terjual Bulan Ini",
+    "absorbed": "Overhead Terserap",
+    "actual": "Overhead Sebenar",
+    "variance": "Perbezaan",
+    "underAbsorbedHint": "Under-absorbed: keuntungan direkod lebih optimis daripada realiti. Pertimbangkan naikkan kadar/sasaran di Overhead Workspace.",
+    "overAbsorbedHint": "Over-absorbed: keuntungan direkod lebih konservatif daripada realiti. Pertimbangkan turunkan kadar/sasaran di Overhead Workspace.",
+    "balancedHint": "Overhead terserap sepadan dengan kos sebenar bulan ini."
+  },
   "chart": {
     "title": "Trend Jualan",
     "tooltipLabel": "Jualan"

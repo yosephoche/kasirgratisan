@@ -15,8 +15,10 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import LockedPage from '@/components/LockedPage';
 import ProductPicker from '@/components/ProductPicker';
+import MaterialPicker from '@/components/MaterialPicker';
 import SearchableSelect from '@/components/SearchableSelect';
 import NumberInput from '@/components/NumberInput';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTranslation } from 'react-i18next';
 
 const CURRENCY_SYMBOL: Record<string, string> = { id: 'Rp', en: 'Rp', ms: 'Rp' };
@@ -31,75 +33,124 @@ export default function StockInPage() {
   const currencySymbol = CURRENCY_SYMBOL[i18n.language] ?? 'Rp';
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [itemType, setItemType] = useState<'product' | 'material'>('product');
   const [productId, setProductId] = useState('');
+  const [materialId, setMaterialId] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const [quantity, setQuantity] = useState('');
   const [buyPrice, setBuyPrice] = useState('');
   const [notes, setNotes] = useState('');
   const [filterSupplier, setFilterSupplier] = useState('all');
+  const [filterType, setFilterType] = useState<'all' | 'product' | 'material'>('all');
 
   const stockIns = useLiveQuery(() => db.stockIns.orderBy('date').reverse().toArray());
   const products = useLiveQuery(() => db.products.where('isDeleted').equals(0).toArray());
+  const materials = useLiveQuery(() => db.materials.where('isDeleted').equals(0).toArray());
   const suppliers = useLiveQuery(() => db.suppliers.where('isDeleted').equals(0).toArray());
 
   if (!can('manage_stock_inout')) {
     return <LockedPage title={t('stockIn.locked.title')} permissionLabel={t('stockIn.locked.permissionLabel')} />;
   }
 
-  const filtered = stockIns?.filter(si =>
-    filterSupplier === 'all' || si.supplierId === Number(filterSupplier)
-  ) ?? [];
+  const filtered = stockIns?.filter(si => {
+    const matchSupplier = filterSupplier === 'all' || si.supplierId === Number(filterSupplier);
+    const matchType = filterType === 'all' || (filterType === 'product' ? si.productId !== undefined : si.materialId !== undefined);
+    return matchSupplier && matchType;
+  }) ?? [];
 
-  const getProductName = (pid: number) => products?.find(p => p.id === pid)?.name ?? '-';
+  const getItemName = (si: { productId?: number; materialId?: number }) => {
+    if (si.materialId !== undefined) return materials?.find(m => m.id === si.materialId)?.name ?? '-';
+    return products?.find(p => p.id === si.productId)?.name ?? '-';
+  };
   const getSupplierName = (sid: number) => suppliers?.find(s => s.id === sid)?.name ?? '-';
 
   const openAdd = () => {
-    setProductId(''); setSupplierId(''); setQuantity(''); setBuyPrice(''); setNotes('');
+    setItemType('product');
+    setProductId(''); setMaterialId(''); setSupplierId(''); setQuantity(''); setBuyPrice(''); setNotes('');
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     const qty = Number(quantity);
     const price = Number(buyPrice);
-    if (!productId || !supplierId || qty <= 0 || price <= 0) {
+    const itemId = itemType === 'product' ? productId : materialId;
+    if (!itemId || !supplierId || qty <= 0 || price <= 0) {
       toast.error(t('stockIn.toast.fillAll'));
       return;
     }
 
-    const product = products?.find(p => p.id === Number(productId));
-    if (!product) return;
+    if (itemType === 'product') {
+      const product = products?.find(p => p.id === Number(productId));
+      if (!product) return;
 
-    await db.stockIns.add({
-      productId: Number(productId),
-      supplierId: Number(supplierId),
-      quantity: qty,
-      buyPrice: price,
-      totalPrice: qty * price,
-      date: new Date(),
-      notes: notes.trim(),
-      createdBy: currentUser?.id,
-    });
+      await db.stockIns.add({
+        productId: product.id!,
+        supplierId: Number(supplierId),
+        quantity: qty,
+        buyPrice: price,
+        totalPrice: qty * price,
+        date: new Date(),
+        notes: notes.trim(),
+        createdBy: currentUser?.id,
+      });
 
-    const oldStock = product.stock;
-    const oldHpp = product.hpp;
-    const newStock = Math.round((oldStock + qty) * 1e6) / 1e6;
-    const newHpp = newStock > 0 ? ((oldStock * oldHpp) + (qty * price)) / newStock : price;
+      const oldStock = product.stock;
+      const oldHpp = product.hpp;
+      const newStock = Math.round((oldStock + qty) * 1e6) / 1e6;
+      const newHpp = newStock > 0 ? ((oldStock * oldHpp) + (qty * price)) / newStock : price;
 
-    await db.hppHistory.add({
-      productId: product.id!,
-      oldHpp,
-      newHpp,
-      source: 'stock_in',
-      date: new Date(),
-    });
+      await db.hppHistory.add({
+        productId: product.id!,
+        oldHpp,
+        newHpp,
+        source: 'stock_in',
+        date: new Date(),
+      });
 
-    await db.products.update(product.id!, {
-      stock: newStock,
-      hpp: Math.round(newHpp),
-      updatedAt: new Date(),
-    });
+      await db.products.update(product.id!, {
+        stock: newStock,
+        hpp: Math.round(newHpp),
+        updatedAt: new Date(),
+      });
 
-    toast.success(t('stockIn.toast.success', { product: product.name, qty, hpp: Math.round(newHpp).toLocaleString(numberLocale) }));
+      toast.success(t('stockIn.toast.success', { product: product.name, qty, hpp: Math.round(newHpp).toLocaleString(numberLocale) }));
+    } else {
+      const material = materials?.find(m => m.id === Number(materialId));
+      if (!material) return;
+
+      await db.stockIns.add({
+        materialId: material.id!,
+        supplierId: Number(supplierId),
+        quantity: qty,
+        buyPrice: price,
+        totalPrice: qty * price,
+        date: new Date(),
+        notes: notes.trim(),
+        createdBy: currentUser?.id,
+      });
+
+      const oldStock = material.stock;
+      const oldCost = material.costPerUnit;
+      const newStock = Math.round((oldStock + qty) * 1e6) / 1e6;
+      const newCost = newStock > 0 ? ((oldStock * oldCost) + (qty * price)) / newStock : price;
+
+      await db.hppHistory.add({
+        materialId: material.id!,
+        oldHpp: oldCost,
+        newHpp: newCost,
+        source: 'stock_in',
+        date: new Date(),
+      });
+
+      await db.materials.update(material.id!, {
+        stock: newStock,
+        costPerUnit: Math.round(newCost),
+        updatedAt: new Date(),
+      });
+
+      toast.success(t('stockIn.toast.success', { product: material.name, qty, hpp: Math.round(newCost).toLocaleString(numberLocale) }));
+    }
+
     setDialogOpen(false);
   };
 
@@ -119,6 +170,14 @@ export default function StockInPage() {
           <Plus className="w-4 h-4" /> {t('stockIn.add')}
         </Button>
       </div>
+
+      <Tabs value={filterType} onValueChange={v => setFilterType(v as 'all' | 'product' | 'material')}>
+        <TabsList className="w-full">
+          <TabsTrigger value="all" className="flex-1">{t('stockIn.typeFilter.all')}</TabsTrigger>
+          <TabsTrigger value="product" className="flex-1">{t('stockIn.typeFilter.product')}</TabsTrigger>
+          <TabsTrigger value="material" className="flex-1">{t('stockIn.typeFilter.material')}</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       <SearchableSelect
         value={filterSupplier}
@@ -145,7 +204,7 @@ export default function StockInPage() {
               <CardContent className="p-3">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="text-sm font-semibold">{getProductName(si.productId)}</h3>
+                    <h3 className="text-sm font-semibold">{getItemName(si)}</h3>
                     <p className="text-xs text-muted-foreground">{t('stockIn.item.fromSupplier', { supplier: getSupplierName(si.supplierId) })}</p>
                     <div className="flex items-center gap-3 mt-1.5">
                       <span className="text-xs font-medium bg-success/10 text-success px-2 py-0.5 rounded">{t('stockIn.item.quantity', { qty: si.quantity })}</span>
@@ -169,14 +228,32 @@ export default function StockInPage() {
           <DialogHeader><DialogTitle>{t('stockIn.dialog.title')}</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
-              <Label>{t('stockIn.dialog.productLabel')}</Label>
-              <ProductPicker
-                products={products ?? []}
-                value={productId}
-                onChange={setProductId}
-                filter={p => isStockManaged(p)}
-                showHpp
-              />
+              <Label>{t('stockIn.dialog.typeLabel')}</Label>
+              <Tabs value={itemType} onValueChange={v => { setItemType(v as 'product' | 'material'); setProductId(''); setMaterialId(''); }}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="product" className="flex-1">{t('stockIn.typeFilter.product')}</TabsTrigger>
+                  <TabsTrigger value="material" className="flex-1">{t('stockIn.typeFilter.material')}</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{itemType === 'product' ? t('stockIn.dialog.productLabel') : t('stockIn.dialog.materialLabel')}</Label>
+              {itemType === 'product' ? (
+                <ProductPicker
+                  products={products ?? []}
+                  value={productId}
+                  onChange={setProductId}
+                  filter={p => isStockManaged(p)}
+                  showHpp
+                />
+              ) : (
+                <MaterialPicker
+                  materials={materials ?? []}
+                  value={materialId}
+                  onChange={setMaterialId}
+                  showCost
+                />
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>{t('stockIn.dialog.supplierLabel')}</Label>

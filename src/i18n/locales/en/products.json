@@ -47,7 +47,26 @@
     "copyFromSku": "Copy from SKU",
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "Additional notes/info, e.g.: contains 5 pcs, spice level, supplier",
-    "descriptionCounter": "/500"
+    "descriptionCounter": "/500",
+    "overheadTitle": "Overhead per Serving (optional)",
+    "overheadHint": "Leave empty to use the global default from Overhead Workspace.",
+    "overheadCostLabel": "Overhead Amount",
+    "overheadCostPlaceholder": "0",
+    "overheadModeLabel": "Mode",
+    "overheadModeFixed": "Fixed Rp / serving",
+    "overheadModePercent": "Percent of ingredient cost"
+  },
+  "recipe": {
+    "title": "Recipe / Ingredient Composition",
+    "hint": "Add raw ingredients & quantity per 1 unit of the finished product. Sales will automatically reduce ingredient stock.",
+    "unknownIngredient": "Ingredient not found",
+    "pickIngredient": "Search ingredient...",
+    "qtyLabel": "Quantity",
+    "unitLabel": "Unit",
+    "addButton": "Add Ingredient",
+    "toastAlreadyAdded": "This ingredient is already in the recipe",
+    "saveFirstHint": "Save the product first to set up the recipe.",
+    "noMaterialsHint": "No ingredients/packaging yet. Add some first in the Ingredients & Packaging menu."
   },
   "saveButton": {
     "edit": "Save Changes",

@@ -72,6 +72,10 @@
       "title": "Pembekal",
       "description": "Urus data pembekal"
     },
+    "material": {
+      "title": "Bahan & Packaging",
+      "description": "Urus data induk bahan mentah & packaging untuk resipi"
+    },
     "customers": {
       "title": "Pelanggan",
       "description": "Urus data pelanggan"
@@ -124,6 +128,10 @@
       "description": "Sediakan teks footer resit dan pilihan pencetakan logo",
       "placeholder": "Contoh: Terima kasih atas kunjungan anda!",
       "saveSuccess": "Tetapan resit disimpan"
+    },
+    "overhead": {
+      "title": "Overhead Workspace",
+      "description": "Kira kos overhead per hidangan daripada kos tetap bulanan"
     },
     "stockOpname": {
       "title": "Stock Opname",
@@ -1000,5 +1008,73 @@
     "failed": "Gagal menghantar laporan. Sila cuba lagi.",
     "networkError": "Ralat rangkaian berlaku semasa menghantar laporan.",
     "emptyError": "Sila isi keterangan kendala terlebih dahulu."
+  },
+  "overheadSettings": {
+    "title": "Overhead Workspace",
+    "description": "Masukkan kos tetap bulanan & sasaran jualan. Hasilnya jadi overhead lalai per hidangan untuk semua produk (boleh ditimpa per produk).",
+    "resultLabel": "Overhead per Unit",
+    "resultHint": "Jumlah kos overhead bulanan ÷ sasaran jualan bulanan",
+    "monthlyTargetUnitsLabel": "Sasaran Jualan per Bulan (pcs)",
+    "monthlyTargetUnitsHint": "Anggaran bilangan produk terjual per bulan",
+    "rentPerYearLabel": "Sewa Tempat (per Tahun)",
+    "utilitiesPerMonthLabel": "Elektrik, Air, Internet (per Bulan)",
+    "marketingPerMonthLabel": "Pemasaran / Promosi (per Bulan)",
+    "insurancePerMonthLabel": "Insurans (per Bulan)",
+    "salariesPerMonthLabel": "Gaji Pekerja (per Bulan)",
+    "equipmentMaintenancePerMonthLabel": "Penyelenggaraan Peralatan (per Bulan)",
+    "depreciationPerMonthLabel": "Susut Nilai Aset (per Bulan)",
+    "otherPerMonthLabel": "Kos Lain-lain (per Bulan)",
+    "saveSuccess": "Overhead Workspace disimpan",
+    "saveFailed": "Gagal menyimpan Overhead Workspace"
+  },
+  "material": {
+    "locked": {
+      "title": "Bahan & Packaging",
+      "permissionLabel": "Urus Stok Masuk"
+    },
+    "title": "Bahan & Packaging",
+    "add": "Tambah",
+    "searchPlaceholder": "Cari bahan/packaging...",
+    "count_zero": "{{count}} material",
+    "count_one": "{{count}} material",
+    "count_other": "{{count}} material",
+    "type": {
+      "all": "Semua",
+      "ingredient": "Bahan",
+      "packaging": "Packaging"
+    },
+    "empty": {
+      "title": "Belum ada bahan/packaging",
+      "add": "Tambah Material"
+    },
+    "card": {
+      "stock": "Stok: {{stock}} {{unit}}",
+      "cost": "Kos: Rp {{cost}}"
+    },
+    "dialog": {
+      "addTitle": "Tambah Material",
+      "editTitle": "Sunting Material",
+      "nameLabel": "Nama *",
+      "namePlaceholder": "Cth: Kopi Serbuk, Cawan 12oz",
+      "typeLabel": "Jenis",
+      "unitLabel": "Unit",
+      "stockLabel": "Stok Awal",
+      "costLabel": "Kos per Unit",
+      "costHint": "Dikemas kini automatik (purata wajaran) setiap Stock In, atau isi manual di sini.",
+      "notesLabel": "Nota",
+      "notesPlaceholder": "Nota tambahan",
+      "save": "Simpan"
+    },
+    "deleteDialog": {
+      "title": "Padam Material?",
+      "description": "Data material yang dipadam tidak boleh dipulihkan. Resipi yang guna material ini akan papar \"bahan tidak ditemui\".",
+      "cancel": "Batal",
+      "confirm": "Padam"
+    },
+    "toast": {
+      "updated": "Material dikemas kini",
+      "added": "Material ditambah",
+      "deleted": "Material dipadam"
+    }
   }
 }

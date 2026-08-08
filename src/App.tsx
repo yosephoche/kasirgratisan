@@ -23,6 +23,7 @@ import Products from "./pages/Products";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import SupplierPage from "./pages/Supplier";
+import MaterialsPage from "./pages/Materials";
 import CustomersPage from "./pages/Customers";
 import StockInPage from "./pages/StockIn";
 import StockOutPage from "./pages/StockOut";
@@ -37,6 +38,7 @@ import ExpenseCategoriesSettings from "./pages/settings/ExpenseCategoriesSetting
 import UnitsSettings from "./pages/settings/UnitsSettings";
 import ThemeSettings from "./pages/settings/ThemeSettings";
 import ReceiptSettings from "./pages/settings/ReceiptSettings";
+import OverheadSettings from "./pages/settings/OverheadSettings";
 import IssueReport from "./pages/settings/IssueReport";
 import StockOpname from "./pages/settings/StockOpname";
 import BackupRestoreSettings from "./pages/settings/BackupRestoreSettings";
@@ -78,8 +80,17 @@ const App = () => {
     };
 
     window.addEventListener('online', handleOnline);
+
+    // Polling ringan agar perubahan dari device lain (pull) juga masuk tanpa aksi user
+    const pollInterval = setInterval(() => {
+      import('@/lib/sync').then(({ triggerBackgroundSync }) => {
+        triggerBackgroundSync();
+      });
+    }, 60000); // 60 detik
+
     return () => {
       window.removeEventListener('online', handleOnline);
+      clearInterval(pollInterval);
     };
   }, []);
 
@@ -142,6 +153,14 @@ const App = () => {
                     element={
                       <ErrorBoundary>
                         <SupplierPage />
+                      </ErrorBoundary>
+                    }
+                  />
+                  <Route
+                    path="/materials"
+                    element={
+                      <ErrorBoundary>
+                        <MaterialsPage />
                       </ErrorBoundary>
                     }
                   />
@@ -254,6 +273,14 @@ const App = () => {
                     element={
                       <ErrorBoundary>
                         <ReceiptSettings />
+                      </ErrorBoundary>
+                    }
+                  />
+                  <Route
+                    path="/settings/overhead"
+                    element={
+                      <ErrorBoundary>
+                        <OverheadSettings />
                       </ErrorBoundary>
                     }
                   />

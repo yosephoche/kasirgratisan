@@ -21,6 +21,7 @@ import ReceiptDialog from '@/components/Receipt';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/use-auth';
 import { useTranslation } from 'react-i18next';
+import { applyRecipeAwareStockDelta } from '@/lib/recipe';
 
 const LOCALES: Record<string, Locale> = { id: idLocale, en: enUS, ms };
 const NUMBER_LOCALES: Record<string, string> = { id: 'id-ID', en: 'en-US', ms: 'ms-MY' };
@@ -161,12 +162,11 @@ export default function TransactionHistory() {
       }
       if (restoreStock) {
         const items = getTxItems(selectedTx.id);
-        for (const item of items) {
-          const product = await db.products.get(item.productId);
-          if (product) {
-            await db.products.update(item.productId, { stock: product.stock + item.quantity });
+        await db.transaction('rw', db.products, db.productRecipes, db.materials, async () => {
+          for (const item of items) {
+            await applyRecipeAwareStockDelta(item.productId, -item.quantity);
           }
-        }
+        });
       }
       await db.transactionItems.where('transactionId').equals(selectedTx.id).delete();
       await db.transactions.delete(selectedTx.id);

@@ -78,6 +78,8 @@ export interface Product {
   createdBy?: number; // userId (optional — undefined for legacy/single-user mode)
   updatedBy?: number; // userId
   syncedAt?: Date | null;
+  overheadCost?: number;              // Rp per porsi (mode fixed) / persen (mode percent) — override; kosong = pakai default global
+  overheadMode?: 'fixed' | 'percent'; // default 'fixed'
 }
 
 export interface Supplier {
@@ -109,7 +111,8 @@ export interface Customer {
 
 export interface StockIn {
   id?: number;
-  productId: number;
+  productId?: number; // diisi jika stock-in produk (tepat salah satu dari productId/materialId)
+  materialId?: number; // diisi jika stock-in material (bahan/packaging)
   supplierId: number;
   quantity: number;
   buyPrice: number; // harga beli per unit
@@ -154,7 +157,8 @@ export interface StockOpnameItem {
 
 export interface HppHistory {
   id?: number;
-  productId: number;
+  productId?: number; // diisi jika histori produk (tepat salah satu dari productId/materialId)
+  materialId?: number; // diisi jika histori material
   oldHpp: number;
   newHpp: number;
   source: 'stock_in' | 'manual';
@@ -281,6 +285,54 @@ export interface DebtPayment {
   syncedAt?: Date | null;
 }
 
+export interface ProductRecipe {
+  id?: number;
+  productId: number;            // FK -> products (produk JADI yang dijual)
+  ingredientMaterialId: number; // FK -> materials (bahan/packaging)
+  quantity: number;          // takaran bahan per 1 unit produk jadi
+  unit: string;              // snapshot satuan bahan (mis. 'gram', 'ml')
+  createdAt: Date;
+  isDeleted: number;         // 0/1 soft delete
+  deletedAt: Date | null;
+  updatedAt?: Date;
+  syncedAt?: Date | null;
+}
+
+export interface Material {
+  id?: number;
+  name: string;
+  type: 'ingredient' | 'packaging';
+  unit: string;         // satuan: gram, ml, pcs, dll (referensi dari master satuan)
+  stock: number;
+  costPerUnit: number;  // harga pokok per satuan, diperbarui via Stock In (weighted average) atau input manual
+  barcode?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt?: Date;
+  isDeleted: number;     // 0 = active, 1 = deleted
+  deletedAt: Date | null;
+  createdBy?: number;    // userId
+  updatedBy?: number;    // userId
+  syncedAt?: Date | null;
+}
+
+export interface OverheadConfig {
+  id?: number;                       // singleton: selalu 1 baris per toko
+  monthlyTargetUnits: number;        // target penjualan per bulan (pcs)
+  rentPerYear: number;               // sewa tempat (per TAHUN) -> /12 saat hitung
+  utilitiesPerMonth: number;         // listrik, air, internet
+  marketingPerMonth: number;
+  insurancePerMonth: number;
+  salariesPerMonth: number;          // total gaji karyawan
+  equipmentMaintenancePerMonth: number;
+  depreciationPerMonth: number;      // penyusutan
+  otherPerMonth?: number;
+  updatedAt?: Date;
+  isDeleted: number;
+  deletedAt: Date | null;
+  syncedAt?: Date | null;
+}
+
 export interface DeletedRecord {
   id?: number;
   tableName: string;
@@ -309,6 +361,7 @@ export interface StoreSettings {
   cloudStoreId?: string | null; // cloud store ID yang di-bind ke device ini untuk sync
   printLogo?: boolean; // toggle to print store logo on ESC/POS receipt
   hideWatermark?: boolean; // toggle to hide FreeKasir.com credit/watermark on ESC/POS receipt
+  lastPulledAt?: Date | null; // waktu terakhir pullSyncData() sukses (cursor `since` untuk pull berikutnya)
 }
 
 // === Database ===
@@ -334,6 +387,9 @@ class PosDatabase extends Dexie {
   stockOpnames!: Table<StockOpname>;
   stockOpnameItems!: Table<StockOpnameItem>;
   deletedRecords!: Table<DeletedRecord>;
+  productRecipes!: Table<ProductRecipe>;
+  overheadConfig!: Table<OverheadConfig>;
+  materials!: Table<Material>;
 
   constructor() {
     super('kasirgratisan-db');
@@ -797,6 +853,72 @@ class PosDatabase extends Dexie {
       await backfillTable('debtPayments', ['date']);
       await backfillTable('stockOpnames', ['date']);
     });
+
+    // Version 15 - Add productRecipes & overheadConfig (Fase H: resep + overhead)
+    this.version(15).stores({
+      categories:        '++id, name, isDeleted, updatedAt, syncedAt',
+      products:          '++id, name, &sku, categoryId, barcode, isDeleted, createdBy, updatedBy, unit, updatedAt, syncedAt',
+      suppliers:         '++id, name, isDeleted, updatedAt, syncedAt',
+      customers:         '++id, name, isDeleted, updatedAt, syncedAt',
+      stockIns:          '++id, productId, supplierId, date, createdBy, updatedAt, syncedAt',
+      stockOuts:         '++id, productId, date, createdBy, updatedAt, syncedAt',
+      hppHistory:        '++id, productId, date, syncedAt',
+      paymentMethods:    '++id, name, category, updatedAt, syncedAt',
+      transactions:      '++id, date, &receiptNumber, paymentMethodId, status, orderNumber, createdBy, updatedAt, syncedAt',
+      transactionItems:  '++id, transactionId, productId',
+      storeSettings:     '++id',
+      units:             '++id, &name, isDeleted, updatedAt, syncedAt',
+      users:             '++id, &username, role, isActive, updatedAt, syncedAt',
+      expenseCategories: '++id, name, isDeleted, updatedAt, syncedAt',
+      expenses:          '++id, date, categoryId, paymentMethodId, createdBy, isDeleted, updatedAt, syncedAt',
+      debts:             '++id, &transactionId, customerId, status, createdAt, updatedAt, syncedAt',
+      debtPayments:      '++id, debtId, date, paymentMethodId, createdBy, updatedAt, syncedAt',
+      stockOpnames:      '++id, date, status, createdBy, updatedAt, syncedAt',
+      stockOpnameItems:  '++id, opnameId, productId, [opnameId+productId]',
+      deletedRecords:    '++id, tableName, recordId, deletedAt, syncedAt',
+      productRecipes:    '++id, productId, ingredientProductId, isDeleted, updatedAt, syncedAt',
+      overheadConfig:    '++id, isDeleted, updatedAt, syncedAt',
+    });
+
+    // Version 16 - Master data Material (bahan baku & packaging), terpisah dari Product.
+    // ProductRecipe kini merujuk ke Material (ingredientMaterialId), bukan Product lagi.
+    this.version(16).stores({
+      categories:        '++id, name, isDeleted, updatedAt, syncedAt',
+      products:          '++id, name, &sku, categoryId, barcode, isDeleted, createdBy, updatedBy, unit, updatedAt, syncedAt',
+      suppliers:         '++id, name, isDeleted, updatedAt, syncedAt',
+      customers:         '++id, name, isDeleted, updatedAt, syncedAt',
+      stockIns:          '++id, productId, materialId, supplierId, date, createdBy, updatedAt, syncedAt',
+      stockOuts:         '++id, productId, date, createdBy, updatedAt, syncedAt',
+      hppHistory:        '++id, productId, materialId, date, syncedAt',
+      paymentMethods:    '++id, name, category, updatedAt, syncedAt',
+      transactions:      '++id, date, &receiptNumber, paymentMethodId, status, orderNumber, createdBy, updatedAt, syncedAt',
+      transactionItems:  '++id, transactionId, productId',
+      storeSettings:     '++id',
+      units:             '++id, &name, isDeleted, updatedAt, syncedAt',
+      users:             '++id, &username, role, isActive, updatedAt, syncedAt',
+      expenseCategories: '++id, name, isDeleted, updatedAt, syncedAt',
+      expenses:          '++id, date, categoryId, paymentMethodId, createdBy, isDeleted, updatedAt, syncedAt',
+      debts:             '++id, &transactionId, customerId, status, createdAt, updatedAt, syncedAt',
+      debtPayments:      '++id, debtId, date, paymentMethodId, createdBy, updatedAt, syncedAt',
+      stockOpnames:      '++id, date, status, createdBy, updatedAt, syncedAt',
+      stockOpnameItems:  '++id, opnameId, productId, [opnameId+productId]',
+      deletedRecords:    '++id, tableName, recordId, deletedAt, syncedAt',
+      productRecipes:    '++id, productId, ingredientMaterialId, isDeleted, updatedAt, syncedAt',
+      overheadConfig:    '++id, isDeleted, updatedAt, syncedAt',
+      materials:         '++id, name, type, isDeleted, updatedAt, syncedAt',
+    }).upgrade(async (tx) => {
+      // Clean cutover: ProductRecipe kini merujuk Material, bukan Product. Resep lama
+      // (kalau ada dari testing lokal) di-soft-delete — user re-create manual via RecipeEditor.
+      const now = new Date();
+      await tx.table('productRecipes').toCollection().modify((record: any) => {
+        if (record.isDeleted === 0) {
+          record.isDeleted = 1;
+          record.deletedAt = now;
+          record.updatedAt = now;
+          record.syncedAt = null;
+        }
+      });
+    });
   }
 }
 
@@ -846,7 +968,10 @@ export async function sanitizeDatabaseDates() {
   await sanitizeTableDates(db.debtPayments, ['date', 'updatedAt', 'syncedAt']);
   await sanitizeTableDates(db.stockOpnames, ['date', 'updatedAt', 'syncedAt']);
   await sanitizeTableDates(db.deletedRecords, ['deletedAt', 'syncedAt']);
-  await sanitizeTableDates(db.storeSettings, ['lastBackupAt', 'lastCloudBackupAt']);
+  await sanitizeTableDates(db.storeSettings, ['lastBackupAt', 'lastCloudBackupAt', 'lastPulledAt']);
+  await sanitizeTableDates(db.productRecipes, ['createdAt', 'deletedAt', 'updatedAt', 'syncedAt']);
+  await sanitizeTableDates(db.overheadConfig, ['deletedAt', 'updatedAt', 'syncedAt']);
+  await sanitizeTableDates(db.materials, ['createdAt', 'deletedAt', 'updatedAt', 'syncedAt']);
 }
 
 export function setupSyncHooks(db: PosDatabase) {
@@ -866,7 +991,10 @@ export function setupSyncHooks(db: PosDatabase) {
     'hppHistory',
     'debts',
     'debtPayments',
-    'stockOpnames'
+    'stockOpnames',
+    'productRecipes',
+    'overheadConfig',
+    'materials'
   ];
 
   syncTables.forEach((tableName) => {

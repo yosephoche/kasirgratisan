@@ -47,7 +47,26 @@
     "copyFromSku": "Salin dari SKU",
     "descriptionLabel": "Penerangan",
     "descriptionPlaceholder": "Nota/info tambahan, cth: isi 5 pcs, tahap pedas, pembekal",
-    "descriptionCounter": "/500"
+    "descriptionCounter": "/500",
+    "overheadTitle": "Overhead per Hidangan (pilihan)",
+    "overheadHint": "Biarkan kosong untuk guna nilai lalai global dari Overhead Workspace.",
+    "overheadCostLabel": "Jumlah Overhead",
+    "overheadCostPlaceholder": "0",
+    "overheadModeLabel": "Mod",
+    "overheadModeFixed": "Rp tetap / hidangan",
+    "overheadModePercent": "Peratus daripada kos bahan"
+  },
+  "recipe": {
+    "title": "Resipi / Komposisi Bahan",
+    "hint": "Tambah bahan mentah & sukatan per 1 unit produk siap. Jualan akan kurangkan stok bahan secara automatik.",
+    "unknownIngredient": "Bahan tidak ditemui",
+    "pickIngredient": "Cari bahan mentah...",
+    "qtyLabel": "Sukatan",
+    "unitLabel": "Unit",
+    "addButton": "Tambah Bahan",
+    "toastAlreadyAdded": "Bahan ini sudah ada dalam resipi",
+    "saveFirstHint": "Simpan produk dahulu untuk mengatur resipi.",
+    "noMaterialsHint": "Belum ada bahan/packaging. Tambah dahulu di menu Bahan & Packaging."
   },
   "saveButton": {
     "edit": "Simpan Perubahan",

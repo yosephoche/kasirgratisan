@@ -47,7 +47,26 @@
     "copyFromSku": "Salin dari SKU",
     "descriptionLabel": "Deskripsi",
     "descriptionPlaceholder": "Catatan/info tambahan, mis: isi 5 pcs, level pedas, supplier",
-    "descriptionCounter": "/500"
+    "descriptionCounter": "/500",
+    "overheadTitle": "Overhead per Porsi (opsional)",
+    "overheadHint": "Kosongkan untuk memakai default global dari Overhead Workspace.",
+    "overheadCostLabel": "Nominal Overhead",
+    "overheadCostPlaceholder": "0",
+    "overheadModeLabel": "Mode",
+    "overheadModeFixed": "Rp tetap / porsi",
+    "overheadModePercent": "Persen dari biaya bahan"
+  },
+  "recipe": {
+    "title": "Resep / Komposisi Bahan",
+    "hint": "Tambah bahan baku & takaran per 1 unit produk jadi. Penjualan akan mengurangi stok bahan otomatis.",
+    "unknownIngredient": "Bahan tidak ditemukan",
+    "pickIngredient": "Cari bahan baku...",
+    "qtyLabel": "Takaran",
+    "unitLabel": "Satuan",
+    "addButton": "Tambah Bahan",
+    "toastAlreadyAdded": "Bahan ini sudah ada di resep",
+    "saveFirstHint": "Simpan produk terlebih dahulu untuk mengatur resep.",
+    "noMaterialsHint": "Belum ada data bahan/packaging. Tambahkan dulu di menu Bahan & Packaging."
   },
   "saveButton": {
     "edit": "Simpan Perubahan",
