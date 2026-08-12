@@ -4,7 +4,7 @@
 > ada di `PLAN.md`. Repo ini deploy ke Vercel.
 
 **Fase aktif:** Fase E — deploy Vercel + backend VPS SELESAI & Acceptance TERVERIFIKASI 2026-08-09 (`kasirgratisan-murex.vercel.app` ↔ `api-kasir.paradox.web.id`). Rebrand nama/logo/watermark masih **ditunda** (belum ada aset final) — sisanya Fase E secara fungsional selesai.
-Ad-hoc di luar Fase A-H: **fitur invite-link karyawan** — sisi frontend selesai, **BLOCKED** nunggu backend endpoint (lihat Log 2026-08-12).
+Ad-hoc di luar Fase A-H: **fitur invite-link karyawan** — frontend selesai & di-push (`7c05d29`), backend endpoint sudah live di VPS (`api-kasir.paradox.web.id`, smoke-test `POST /api/invites/:token/redeem` → 404 "Undangan tidak ditemukan" sesuai kontrak). Belum diverifikasi end-to-end (generate link asli → redeem → login karyawan) — lihat Log.
 **Terakhir diperbarui:** 2026-08-12
 
 ---
@@ -163,6 +163,9 @@ Ad-hoc di luar Fase A-H: **fitur invite-link karyawan** — sisi frontend selesa
     3. `DELETE /api/stores/{storeId}/invites/{token}` — Google auth, buat regenerate/revoke.
   - Belum bisa diverifikasi end-to-end (happy path penuh) sampai backend di atas jalan — UI owner & error-state karyawan sudah testable sekarang via mock.
 
+- 2026-08-12 — **Push ke `main` (`7c05d29`).** Sebelum push: real `tsc --noEmit -p tsconfig.app.json` (node 20) → 20 error, baseline identik. `npx vitest run` → 15/15 pass. Backend ternyata sudah dideploy user ke VPS di antara sesi — smoke test `curl -X POST https://api-kasir.paradox.web.id/api/invites/test-token/redeem` → `404 {"error":"Undangan tidak ditemukan"}`, sesuai kontrak yang diminta (endpoint hidup, error shape benar). `POST /api/stores/:id/invites` & `DELETE .../invites/:token` belum di-smoke-test (butuh Google auth asli, tidak dites lewat curl).
+  - **Belum diverifikasi:** flow penuh generate-link (owner) → buka `/join/:token` di device lain → redeem → data ter-pull → login karyawan pakai username/PIN. Perlu dites manual (browser 2 profil/device atau minimal 2 tab beda IndexedDB) sebelum dianggap Acceptance terpenuhi.
+
 ## Blocker aktif
-- Fitur invite-link karyawan **[!] BLOCKED** — nunggu 3 endpoint backend di atas diimplementasi di repo backend terpisah, baru bisa verifikasi end-to-end.
+- Fitur invite-link karyawan — backend sudah live, **belum ada verifikasi end-to-end** (generate → redeem → login karyawan). Perlu dites manual sebelum di-anggap selesai penuh.
 - _(Fase E fungsional selesai & Acceptance lolos. Sisa: rebrand nama/logo kalau/ketika aset final sudah ada, custom domain opsional)_
