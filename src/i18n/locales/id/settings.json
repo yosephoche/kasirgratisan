@@ -1267,6 +1267,20 @@
     "title": "Karyawan & Akses",
     "desc": "Atur siapa yang bisa mengakses apa di toko Anda. Pemilik selalu memiliki akses penuh.",
     "addButton": "Tambah Karyawan",
+    "inviteButton": "Undang via Link",
+    "invite": {
+      "needsCloudSync": "Aktifkan Cloud Sync dulu di Pengaturan untuk membuat link undangan.",
+      "title": "Link Undangan Karyawan",
+      "desc": "Bagikan link ini ke karyawan. Mereka buka link di device masing-masing untuk mengambil data toko, lalu login pakai username & PIN yang sudah dibuat.",
+      "generating": "Membuat link…",
+      "expiresAt": "Berlaku sampai {{time}}",
+      "copyButton": "Salin Link",
+      "copied": "Link disalin",
+      "copyFailed": "Gagal menyalin link",
+      "regenerateButton": "Buat Ulang Link",
+      "generateFailed": "Gagal membuat link undangan",
+      "revokeFailed": "Gagal mencabut link lama"
+    },
     "card": {
       "owner": "Pemilik",
       "you": "Anda",

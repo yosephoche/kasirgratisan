@@ -111,13 +111,31 @@ export async function login(username: string, pin: string): Promise<LoginResult>
   if (!user) return { ok: false, error: 'Username atau PIN salah' };
   if (!user.isActive) return { ok: false, error: 'Akun ini dinonaktifkan' };
 
-  const hash = await hashPin(pin, settings.deviceId);
-  if (hash !== user.pinHash) return { ok: false, error: 'Username atau PIN salah' };
+  let matched = false;
+  let backfillV2: string | undefined;
 
-  // Update lastLoginAt (best-effort, non-blocking semantics OK)
-  await db.users.update(user.id!, { lastLoginAt: new Date() });
+  if (user.pinHashV2 && settings.cloudStoreId) {
+    // Salt stabil lintas device (cloudStoreId sama di semua device satu toko).
+    const hashV2 = await hashPin(pin, settings.cloudStoreId);
+    matched = hashV2 === user.pinHashV2;
+  } else {
+    // Fallback legacy: salt deviceId (cuma valid di device yang sama tempat akun dibuat).
+    const hash = await hashPin(pin, settings.deviceId);
+    matched = hash === user.pinHash;
+    // Self-heal: kalau toko sudah cloud-linked tapi user ini belum punya pinHashV2, backfill
+    // sekarang biar login berikutnya di device lain (setelah sync) langsung portable.
+    if (matched && settings.cloudStoreId && !user.pinHashV2) {
+      backfillV2 = await hashPin(pin, settings.cloudStoreId);
+    }
+  }
 
-  return { ok: true, user: { ...user, lastLoginAt: new Date() } };
+  if (!matched) return { ok: false, error: 'Username atau PIN salah' };
+
+  const updates: Partial<User> = { lastLoginAt: new Date() };
+  if (backfillV2) updates.pinHashV2 = backfillV2;
+  await db.users.update(user.id!, updates);
+
+  return { ok: true, user: { ...user, ...updates } };
 }
 
 // === Session persistence (localStorage) ===
@@ -199,9 +217,11 @@ export async function createUser(input: {
   if (existing) return { ok: false, error: `Username "${username}" sudah dipakai` };
 
   const pinHash = await hashPin(input.pin, settings.deviceId);
+  const pinHashV2 = settings.cloudStoreId ? await hashPin(input.pin, settings.cloudStoreId) : undefined;
   const userId = await db.users.add({
     username,
     pinHash,
+    pinHashV2,
     name: input.name.trim(),
     role: input.role,
     permissions: input.role === 'owner' ? [] : input.permissions,
@@ -218,6 +238,7 @@ export async function updateUserPin(userId: number, newPin: string): Promise<{ o
   const settings = await db.storeSettings.toCollection().first();
   if (!settings?.deviceId) return { ok: false, error: 'Pengaturan toko belum siap' };
   const pinHash = await hashPin(newPin, settings.deviceId);
-  await db.users.update(userId, { pinHash });
+  const pinHashV2 = settings.cloudStoreId ? await hashPin(newPin, settings.cloudStoreId) : undefined;
+  await db.users.update(userId, { pinHash, pinHashV2 });
   return { ok: true };
 }

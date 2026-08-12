@@ -1,0 +1,14 @@
+{
+  "loading": "Mengambil data toko…",
+  "success": "Berhasil bergabung! Mengarahkan ke halaman login…",
+  "invalidToken": "Link undangan tidak valid.",
+  "expired": "Link undangan ini sudah kedaluwarsa atau tidak berlaku lagi. Minta link baru ke pemilik toko.",
+  "networkError": "Gagal terhubung ke server. Periksa koneksi internet Anda.",
+  "retryButton": "Coba Lagi",
+  "alreadySetup": {
+    "title": "Device Ini Sudah Terpasang",
+    "description": "Device ini sudah punya data toko. Melanjutkan akan menimpa data toko yang tersimpan di device ini dengan data dari link undangan. Yakin lanjut?",
+    "cancel": "Batal",
+    "confirm": "Lanjutkan & Timpa"
+  }
+}

@@ -17,6 +17,7 @@ import AnalyticsTracker from "@/components/AnalyticsTracker";
 import { I18nextProvider } from "react-i18next";
 import i18n from "./i18n";
 import AppLayout from "./components/layout/AppLayout";
+import JoinStore from "./pages/JoinStore";
 import Dashboard from "./pages/Dashboard";
 import Cashier from "./pages/Cashier";
 import Products from "./pages/Products";
@@ -107,6 +108,14 @@ const App = () => {
                 <CloudAuthProvider>
                 <AnalyticsTracker />
               <Routes>
+                <Route
+                  path="/join/:token"
+                  element={
+                    <ErrorBoundary>
+                      <JoinStore />
+                    </ErrorBoundary>
+                  }
+                />
                 <Route element={<AppLayout />}>
                   <Route
                     path="/"

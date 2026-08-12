@@ -508,4 +508,47 @@ export async function fetchPullSync(storeId: string, since?: string): Promise<Sy
   return res.json();
 }
 
+// === Store invite (karyawan join via link, tanpa Google auth) ===
+
+export interface StoreInvite {
+  token: string;
+  url: string;
+  expiresAt: string;
+}
+
+export interface RedeemInviteResponse {
+  storeId: string;
+  storeName: string;
+  serverTime: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  changes: Record<string, any[]>;
+}
+
+/** Owner: buat link undangan untuk toko (Google auth). */
+export async function createStoreInvite(storeId: string, expiresInMinutes?: number): Promise<StoreInvite> {
+  const res = await fetch(`${BASE_URL}/api/stores/${storeId}/invites`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expiresInMinutes }),
+  });
+  if (!res.ok) await parseError(res);
+  return res.json();
+}
+
+/** Karyawan: tukar token undangan dengan snapshot data toko (tanpa Google auth). */
+export async function redeemStoreInvite(token: string): Promise<RedeemInviteResponse> {
+  const res = await fetch(`${BASE_URL}/api/invites/${token}/redeem`, { method: 'POST' });
+  if (!res.ok) await parseError(res);
+  return res.json();
+}
+
+/** Owner: cabut link undangan yang masih aktif (Google auth). */
+export async function revokeStoreInvite(storeId: string, token: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/stores/${storeId}/invites/${token}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) await parseError(res);
+}
+
 export { CloudApiError };

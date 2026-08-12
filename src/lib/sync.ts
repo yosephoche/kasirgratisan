@@ -215,8 +215,51 @@ function coerceRecordDates(record: any, dateFields: string[]) {
 }
 
 /**
- * Fungsi inti untuk melakukan PULL perubahan dari cloud sejak `lastPulledAt`, merge ke Dexie lokal.
+ * Merge satu batch perubahan (bentuk sama dgn `SyncPullResponse`) ke Dexie lokal.
  * Last-write-wins berbasis `updatedAt`: record lokal yang lebih baru & belum ter-push tidak ditimpa.
+ * Dipakai bareng oleh `pullSyncData` (polling biasa) & `JoinStore` (redeem invite link).
+ */
+export async function applyPullResponse(response: { serverTime: string; changes: Record<string, any[]> }): Promise<number> {
+  const storeSettings = await db.storeSettings.toCollection().first();
+  const serverTime = new Date(response.serverTime);
+  let applied = 0;
+
+  await db.transaction('rw', [...SYNC_TABLE_NAMES, 'storeSettings'], async () => {
+    for (const tableName of SYNC_TABLE_NAMES) {
+      const records = response.changes[tableName] ?? [];
+      if (records.length === 0) continue;
+
+      const table = db.table(tableName);
+      const dateFields = SYNC_TABLE_DATE_FIELDS[tableName] ?? [];
+      const hasUpdatedAt = dateFields.includes('updatedAt');
+
+      for (const raw of records) {
+        if (raw.id === undefined || raw.id === null) continue;
+        const coerced = coerceRecordDates(raw, dateFields);
+
+        if (hasUpdatedAt) {
+          const existing = await table.get(coerced.id);
+          const incomingTime = coerced.updatedAt instanceof Date ? coerced.updatedAt.getTime() : 0;
+          const existingTime = existing?.updatedAt instanceof Date ? existing.updatedAt.getTime() : -Infinity;
+          if (existing && existingTime > incomingTime) continue; // lokal lebih baru & belum ter-push, jangan ditimpa
+          coerced.syncedAt = serverTime;
+        }
+
+        await table.put(coerced);
+        applied++;
+      }
+    }
+
+    if (storeSettings?.id) {
+      await db.storeSettings.update(storeSettings.id, { lastPulledAt: serverTime });
+    }
+  });
+
+  return applied;
+}
+
+/**
+ * Fungsi inti untuk melakukan PULL perubahan dari cloud sejak `lastPulledAt`, merge ke Dexie lokal.
  */
 export async function pullSyncData(storeId: string): Promise<{ success: boolean; message: string; applied: number }> {
   try {
@@ -224,39 +267,7 @@ export async function pullSyncData(storeId: string): Promise<{ success: boolean;
     const since = storeSettings?.lastPulledAt ? new Date(storeSettings.lastPulledAt).toISOString() : undefined;
 
     const response = await fetchPullSync(storeId, since);
-    const serverTime = new Date(response.serverTime);
-    let applied = 0;
-
-    await db.transaction('rw', [...SYNC_TABLE_NAMES, 'storeSettings'], async () => {
-      for (const tableName of SYNC_TABLE_NAMES) {
-        const records = response.changes[tableName] ?? [];
-        if (records.length === 0) continue;
-
-        const table = db.table(tableName);
-        const dateFields = SYNC_TABLE_DATE_FIELDS[tableName] ?? [];
-        const hasUpdatedAt = dateFields.includes('updatedAt');
-
-        for (const raw of records) {
-          if (raw.id === undefined || raw.id === null) continue;
-          const coerced = coerceRecordDates(raw, dateFields);
-
-          if (hasUpdatedAt) {
-            const existing = await table.get(coerced.id);
-            const incomingTime = coerced.updatedAt instanceof Date ? coerced.updatedAt.getTime() : 0;
-            const existingTime = existing?.updatedAt instanceof Date ? existing.updatedAt.getTime() : -Infinity;
-            if (existing && existingTime > incomingTime) continue; // lokal lebih baru & belum ter-push, jangan ditimpa
-            coerced.syncedAt = serverTime;
-          }
-
-          await table.put(coerced);
-          applied++;
-        }
-      }
-
-      if (storeSettings?.id) {
-        await db.storeSettings.update(storeSettings.id, { lastPulledAt: serverTime });
-      }
-    });
+    const applied = await applyPullResponse(response);
 
     return {
       success: true,

@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { id as idLocale, enUS, ms } from 'date-fns/locale';
 import type { Locale } from 'date-fns';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Plus, Edit2, Trash2, KeyRound, UserCircle2, ShieldCheck, UserCheck, UserX, Users as UsersIcon } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, KeyRound, UserCircle2, ShieldCheck, UserCheck, UserX, Users as UsersIcon, Link2, Copy, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ import {
   DEFAULT_STAFF_PERMISSIONS,
   type PermissionKey,
 } from '@/lib/auth';
+import { createStoreInvite, revokeStoreInvite, type StoreInvite } from '@/lib/cloud-api';
 import { toast } from 'sonner';
 
 const LOCALES: Record<string, Locale> = { id: idLocale, en: enUS, ms };
@@ -36,6 +37,12 @@ export default function UsersPage() {
   const { t, i18n } = useTranslation('settings');
   const dateLocale = LOCALES[i18n.language] ?? idLocale;
   const users = useLiveQuery(() => db.users.toArray());
+  const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
+
+  // Invite via link dialog
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [invite, setInvite] = useState<StoreInvite | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   // Add/edit dialog
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -170,6 +177,47 @@ export default function UsersPage() {
     }
   };
 
+  const generateInvite = async () => {
+    if (!storeSettings?.cloudStoreId) return;
+    setInviteLoading(true);
+    try {
+      const result = await createStoreInvite(storeSettings.cloudStoreId, 60);
+      setInvite(result);
+    } catch {
+      toast.error(t('users.invite.generateFailed'));
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const openInviteDialog = () => {
+    setInvite(null);
+    setInviteDialogOpen(true);
+    void generateInvite();
+  };
+
+  const regenerateInvite = async () => {
+    if (!storeSettings?.cloudStoreId || !invite) return;
+    setInviteLoading(true);
+    try {
+      await revokeStoreInvite(storeSettings.cloudStoreId, invite.token);
+    } catch {
+      toast.error(t('users.invite.revokeFailed'));
+    } finally {
+      await generateInvite();
+    }
+  };
+
+  const copyInviteLink = async () => {
+    if (!invite) return;
+    try {
+      await navigator.clipboard.writeText(invite.url);
+      toast.success(t('users.invite.copied'));
+    } catch {
+      toast.error(t('users.invite.copyFailed'));
+    }
+  };
+
   const openPinReset = (user: User) => {
     setPinTarget(user);
     setNewPin('');
@@ -249,6 +297,11 @@ export default function UsersPage() {
       <Button size="sm" className="w-full h-10 gap-1.5" onClick={openAdd}>
         <Plus className="w-4 h-4" />
         {t('users.addButton')}
+      </Button>
+
+      <Button size="sm" variant="outline" className="w-full h-10 gap-1.5" onClick={openInviteDialog}>
+        <Link2 className="w-4 h-4" />
+        {t('users.inviteButton')}
       </Button>
 
       <div className="space-y-2">
@@ -421,6 +474,47 @@ export default function UsersPage() {
             <Button className="w-full h-11" onClick={handleSave} disabled={saving}>
               {saving ? t('users.dialog.saving') : editing ? t('users.dialog.saveEdit') : t('users.dialog.saveAdd')}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invite via link dialog */}
+      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <DialogContent className="max-w-[95vw] rounded-xl">
+          <DialogHeader>
+            <DialogTitle>{t('users.invite.title')}</DialogTitle>
+            <DialogDescription className="text-xs">{t('users.invite.desc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            {!storeSettings?.cloudStoreId ? (
+              <p className="text-xs text-muted-foreground">{t('users.invite.needsCloudSync')}</p>
+            ) : inviteLoading && !invite ? (
+              <p className="text-xs text-muted-foreground">{t('users.invite.generating')}</p>
+            ) : invite ? (
+              <>
+                <div className="flex gap-2">
+                  <Input value={invite.url} readOnly className="h-11 font-mono text-xs" />
+                  <Button size="icon" className="h-11 w-11 shrink-0" onClick={copyInviteLink}>
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {t('users.invite.expiresAt', {
+                    time: format(new Date(invite.expiresAt), 'dd MMM yyyy HH:mm', { locale: dateLocale }),
+                  })}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full h-9 gap-1.5"
+                  onClick={regenerateInvite}
+                  disabled={inviteLoading}
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  {t('users.invite.regenerateButton')}
+                </Button>
+              </>
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>

@@ -1,0 +1,14 @@
+{
+  "loading": "Mengambil data kedai…",
+  "success": "Berjaya sertai! Mengarahkan ke halaman log masuk…",
+  "invalidToken": "Link jemputan tidak sah.",
+  "expired": "Link jemputan ini sudah tamat tempoh atau tidak sah lagi. Minta link baharu daripada pemilik kedai.",
+  "networkError": "Gagal berhubung ke server. Semak sambungan internet anda.",
+  "retryButton": "Cuba Lagi",
+  "alreadySetup": {
+    "title": "Peranti Ini Sudah Disediakan",
+    "description": "Peranti ini sudah ada data kedai. Meneruskan akan menimpa data kedai yang tersimpan di peranti ini dengan data daripada link jemputan. Yakin nak teruskan?",
+    "cancel": "Batal",
+    "confirm": "Teruskan & Timpa"
+  }
+}

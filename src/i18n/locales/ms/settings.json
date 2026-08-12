@@ -763,6 +763,20 @@
     "title": "Pekerja & Akses",
     "desc": "Atur siapa yang boleh akses apa di kedai anda. Pemilik sentiasa mempunyai akses penuh.",
     "addButton": "Tambah Pekerja",
+    "inviteButton": "Jemput via Link",
+    "invite": {
+      "needsCloudSync": "Aktifkan Cloud Sync dahulu di Tetapan untuk buat link jemputan.",
+      "title": "Link Jemputan Pekerja",
+      "desc": "Kongsi link ini kepada pekerja. Mereka buka link di peranti masing-masing untuk ambil data kedai, kemudian log masuk guna username & PIN yang sudah dibuat.",
+      "generating": "Membuat link…",
+      "expiresAt": "Sah sehingga {{time}}",
+      "copyButton": "Salin Link",
+      "copied": "Link disalin",
+      "copyFailed": "Gagal menyalin link",
+      "regenerateButton": "Buat Semula Link",
+      "generateFailed": "Gagal membuat link jemputan",
+      "revokeFailed": "Gagal membatalkan link lama"
+    },
     "card": {
       "owner": "Pemilik",
       "you": "Anda",

@@ -1,0 +1,14 @@
+{
+  "loading": "Fetching store data…",
+  "success": "Joined successfully! Redirecting to login…",
+  "invalidToken": "This invite link is invalid.",
+  "expired": "This invite link has expired or is no longer valid. Ask the store owner for a new link.",
+  "networkError": "Couldn't connect to the server. Check your internet connection.",
+  "retryButton": "Try Again",
+  "alreadySetup": {
+    "title": "This Device Is Already Set Up",
+    "description": "This device already has store data. Continuing will overwrite the data stored on this device with the data from the invite link. Continue?",
+    "cancel": "Cancel",
+    "confirm": "Continue & Overwrite"
+  }
+}

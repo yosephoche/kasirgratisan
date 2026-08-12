@@ -8,18 +8,21 @@ import idDashboard from './locales/id/dashboard.json';
 import idReports from './locales/id/reports.json';
 import idProducts from './locales/id/products.json';
 import idSettings from './locales/id/settings.json';
+import idJoin from './locales/id/join.json';
 import enCommon from './locales/en/common.json';
 import enOnboarding from './locales/en/onboarding.json';
 import enDashboard from './locales/en/dashboard.json';
 import enReports from './locales/en/reports.json';
 import enProducts from './locales/en/products.json';
 import enSettings from './locales/en/settings.json';
+import enJoin from './locales/en/join.json';
 import msCommon from './locales/ms/common.json';
 import msOnboarding from './locales/ms/onboarding.json';
 import msDashboard from './locales/ms/dashboard.json';
 import msReports from './locales/ms/reports.json';
 import msProducts from './locales/ms/products.json';
 import msSettings from './locales/ms/settings.json';
+import msJoin from './locales/ms/join.json';
 
 i18n
   .use(LanguageDetector)
@@ -28,12 +31,12 @@ i18n
     debug: import.meta.env.DEV,
     fallbackLng: 'id',
     interpolation: { escapeValue: false },
-    ns: ['common', 'onboarding', 'dashboard', 'reports', 'products', 'settings'],
+    ns: ['common', 'onboarding', 'dashboard', 'reports', 'products', 'settings', 'join'],
     defaultNS: 'common',
     resources: {
-      id: { common: idCommon, onboarding: idOnboarding, dashboard: idDashboard, reports: idReports, products: idProducts, settings: idSettings },
-      en: { common: enCommon, onboarding: enOnboarding, dashboard: enDashboard, reports: enReports, products: enProducts, settings: enSettings },
-      ms: { common: msCommon, onboarding: msOnboarding, dashboard: msDashboard, reports: msReports, products: msProducts, settings: msSettings },
+      id: { common: idCommon, onboarding: idOnboarding, dashboard: idDashboard, reports: idReports, products: idProducts, settings: idSettings, join: idJoin },
+      en: { common: enCommon, onboarding: enOnboarding, dashboard: enDashboard, reports: enReports, products: enProducts, settings: enSettings, join: enJoin },
+      ms: { common: msCommon, onboarding: msOnboarding, dashboard: msDashboard, reports: msReports, products: msProducts, settings: msSettings, join: msJoin },
     },
     detection: {
       order: ['localStorage', 'navigator'],

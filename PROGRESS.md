@@ -3,8 +3,9 @@
 > Status: `[ ]` TODO · `[~]` WIP · `[x]` DONE · `[!]` BLOCKED. Detail & Acceptance
 > ada di `PLAN.md`. Repo ini deploy ke Vercel.
 
-**Fase aktif:** Fase E (de-brand + Vercel) — bagian mekanis SELESAI (telemetri asli mati, `vercel.json`). Rebrand nama/logo & deploy Vercel **ditunda/manual oleh user**. Berikutnya: user deploy sendiri, infokan setelah selesai untuk verifikasi Acceptance E.
-**Terakhir diperbarui:** 2026-08-08
+**Fase aktif:** Fase E — deploy Vercel + backend VPS SELESAI & Acceptance TERVERIFIKASI 2026-08-09 (`kasirgratisan-murex.vercel.app` ↔ `api-kasir.paradox.web.id`). Rebrand nama/logo/watermark masih **ditunda** (belum ada aset final) — sisanya Fase E secara fungsional selesai.
+Ad-hoc di luar Fase A-H: **fitur invite-link karyawan** — sisi frontend selesai, **BLOCKED** nunggu backend endpoint (lihat Log 2026-08-12).
+**Terakhir diperbarui:** 2026-08-12
 
 ---
 
@@ -47,8 +48,8 @@
 - [ ] Rebrand watermark struk (`printer.ts`/`Receipt.tsx`/`KitchenTicket.tsx`) + nama/logo (`index.html`, `public/`, `capacitor.config.ts`, i18n) — **DITUNDA**, user belum punya nama/aset final.
 - [x] `.env.example` diberi catatan `VITE_AUTH_API_URL` produksi harus arah ke backend ter-deploy (bukan localhost). `VITE_GOOGLE_CLIENT_ID` sudah ada dari sesi Fase A.
 - [x] `vercel.json` (SPA rewrite `/(.*) → /index.html`, standar Vite SPA di Vercel)
-- [ ] Deploy Vercel + custom domain — **dilakukan manual oleh user**, tunggu konfirmasi
-- [ ] **Acceptance E (frontend)** — tanpa telemetri asli; app jalan di domain Vercel — cek setelah user deploy
+- [x] Deploy Vercel (`kasirgratisan-murex.vercel.app`, manual oleh user) + backend VPS (`api-kasir.paradox.web.id`, manual oleh user)
+- [x] **Acceptance E (frontend)** — TERVERIFIKASI 2026-08-09 (lihat Log): tanpa telemetri asli, app jalan di domain Vercel, login+store+sync jalan lintas domain lawan backend produksi. Custom domain sendiri belum diset (masih domain default Vercel) — opsional, tidak menghambat Acceptance.
 
 ---
 
@@ -136,5 +137,32 @@
 - 2026-08-08 — **Fase E dimulai (bagian mekanis).** User pilih tunda rebrand nama/logo (belum ada aset final) & deploy Vercel dilakukan manual sendiri — scope sesi ini dibatasi ke bagian yang tidak butuh keputusan brand: `version-check.ts` di-no-op (sebelumnya fetch tanpa gate ke `api.kasirgratisan.my.id` bawa `deviceId`+versi — satu-satunya telemetri yang TIDAK sudah di-gate env, beda dari `analytics.ts`/`onesignal.ts` yang sudah aman by-design sejak awal). `vercel.json` baru dibuat (SPA rewrite, belum ada sebelumnya). `.env.example` ditambah catatan `VITE_AUTH_API_URL` produksi. Real `tsc --noEmit -p tsconfig.app.json` (node 20) → 20 error, baseline identik, nol regresi. `npx vitest run` → 15/15 pass.
   - **Tersisa sebelum Acceptance E:** rebrand nama/logo/watermark (nunggu aset dari user), set env var di dashboard Vercel (`VITE_AUTH_API_URL` ke domain backend produksi, `VITE_GOOGLE_CLIENT_ID`, kosongkan GA/OneSignal kalau belum ada akun sendiri), deploy, lalu verifikasi Network tab produksi tidak ada request ke domain pihak asli.
 
+- 2026-08-09 — **User deploy Vercel + backend VPS, Acceptance E diverifikasi.** Frontend: `kasirgratisan-murex.vercel.app`. Backend: `api-kasir.paradox.web.id` (VPS, HTTPS).
+  - Percobaan pertama login gagal: `Error 400: invalid_request — Missing required parameter: client_id` dari `accounts.google.com`. Root cause: env var `VITE_GOOGLE_CLIENT_ID` belum di-set di dashboard Vercel (`App.tsx` fallback ke `""` kalau kosong) — bukan bug kode, murni config env yang kelewat saat deploy pertama. User tambah env var + redeploy → fix.
+  - Verifikasi otomatis via browser (tab baru, IndexedDB kosong = instalasi baru):
+    1. Load `https://kasirgratisan-murex.vercel.app/` → network log 23 request, **nol** request ke `kasirgratisan.my.id`/GA/OneSignal (hanya Google Fonts + accounts.google.com/gsi buat GSI, keduanya legit & perlu).
+    2. Onboarding baru → toko "Toko Vercel Test" dibuat lokal.
+    3. Login Google sempat gagal diverifikasi via automation (GSI popup buka di window terpisah di luar tab group yang di-track tooling — bukan bug app, keterbatasan tooling browser automation). User login manual sendiri di browser asli → **berhasil**, konfirmasi ke chat.
+    4. Reload tab automation (session Chrome sama) → sudah ke-refresh jadi logged-in juga (profil "Yoseph Parai" + "Self-Host Sync until 31 Des 2099" muncul) — konfirmasi `fetchProfile()` cross-domain (Vercel→VPS) sukses.
+    5. `Create Store Now` → "Toko Vercel Test" → `POST https://api-kasir.paradox.web.id/api/stores` **200**.
+    6. Reload → startup `triggerBackgroundSync()` jalan otomatis → `GET https://api-kasir.paradox.web.id/api/stores/:id/sync` **200** (push di-skip karena belum ada data dirty, benar — bukan kegagalan).
+  - **Acceptance E `[x]` TERPENUHI**: app produksi jalan di domain Vercel, tanpa telemetri domain pihak asli (dibuktikan Network tab produksi asli, bukan asumsi), login→store→sync jalan lintas domain Vercel↔VPS.
+  - **Belum dikerjakan** (di luar Acceptance E, ditunda sesuai keputusan user 2026-08-08): rebrand nama/logo/watermark, custom domain sendiri (masih pakai domain default `*.vercel.app`).
+
+- 2026-08-12 — **Ad-hoc: fitur invite-link karyawan (di luar Fase A-H).** Ditemukan gap: karyawan gak bisa login di device baru karena `AppLayout.tsx` gate onboarding cuma cek `storeSettings.onboardingDone` lokal (per device) — device kosong selalu jatuh ke wizard `Onboarding`, bukan `LoginScreen`. Satu-satunya jalan bawa data toko ke device baru sebelumnya wajib login Google **owner** (karyawan gak punya akses itu). Ketemu bug tambahan: `pinHash` disalt `deviceId` (random per-device, gak sync) padahal tabel `users` ikut sync — PIN yang dibuat di device A gak valid di device B walau ter-sync.
+  - **Fix hash portable:** `User.pinHashV2?` (baru, Dexie v17, no `.upgrade()` — field opsional unindexed) disalt `storeSettings.cloudStoreId` (stabil lintas device, beda dari `deviceId`). `auth.ts`: `createUser`/`updateUserPin` tulis `pinHash` (legacy) + `pinHashV2` (kalau cloud-linked) sekaligus; `login()` cek `pinHashV2` dulu, fallback ke `pinHash`+`deviceId` legacy, dan **self-heal**: backfill `pinHashV2` otomatis saat login legacy sukses di toko yang sudah cloud-linked — tidak perlu migration script.
+  - **Refactor `sync.ts`:** ekstrak blok merge `db.transaction` dari `pullSyncData` jadi `applyPullResponse()` reusable, dipakai juga oleh flow join-invite. Pure refactor, no behavior change.
+  - **`cloud-api.ts`** tambah 3 fungsi baru: `createStoreInvite(storeId, expiresInMinutes)`, `redeemStoreInvite(token)`, `revokeStoreInvite(storeId, token)` — **kontrak backend baru, BELUM ada implementasinya di backend repo.** Lihat spesifikasi endpoint di bawah.
+  - **UI owner** (`Users.tsx`): tombol "Undang via Link" → dialog generate/copy/regenerate link undangan (gate `isOwner && multiUserEnabled && storeSettings.cloudStoreId`).
+  - **UI karyawan**: route baru `/join/:token` (`JoinStore.tsx`) — **sibling** dari `<Route element={<AppLayout />}>` di `App.tsx` (bukan nested, biar bisa render di device kosong tanpa kena gate onboarding). Redeem token → `applyPullResponse()` → tulis `storeSettings` lokal (`onboardingDone:true`, `multiUserEnabled:true`, `cloudStoreId`, `deviceId` baru) → redirect `/` → `AppLayout` otomatis jatuh ke `LoginScreen`. Handle device yang sudah pernah setup (`AlertDialog` konfirmasi overwrite) & error state (token invalid/expired/network, tombol retry).
+  - i18n lengkap id/en/ms: namespace baru `join.json` (didaftarkan di `src/i18n/index.ts`) + `users.invite.*`/`users.inviteButton` di `settings.json`.
+  - Real `tsc --noEmit -p tsconfig.app.json` (node 20) → 20 error, identik baseline pre-existing (nol regresi dari perubahan ini). `npx vitest run` → 15/15 pass.
+  - **BLOCKED — butuh kerjaan di repo backend** (ingatkan user salin ke sana + sesuaikan model Pydantic):
+    1. `POST /api/stores/{storeId}/invites` — Google auth (punya owner). Body `{ expiresInMinutes?: number }` (default 60). Response `{ token, url, expiresAt }`.
+    2. `POST /api/invites/{token}/redeem` — **tanpa** Google auth, rate-limit per token/IP. Response `{ storeId, storeName, serverTime, changes: {...semua SYNC_TABLE_NAMES...} }` (bentuk sama `SyncPullResponse` yang sudah ada). 404 kalau token gak ketemu/revoked, 410 kalau expired (`cloud-api.ts` `JoinStore.tsx` sudah handle kedua status itu spesifik).
+    3. `DELETE /api/stores/{storeId}/invites/{token}` — Google auth, buat regenerate/revoke.
+  - Belum bisa diverifikasi end-to-end (happy path penuh) sampai backend di atas jalan — UI owner & error-state karyawan sudah testable sekarang via mock.
+
 ## Blocker aktif
-- _(tidak ada — nunggu user selesai deploy Vercel manual, lalu infokan buat lanjut verifikasi Acceptance E / rebrand kalau aset sudah siap)_
+- Fitur invite-link karyawan **[!] BLOCKED** — nunggu 3 endpoint backend di atas diimplementasi di repo backend terpisah, baru bisa verifikasi end-to-end.
+- _(Fase E fungsional selesai & Acceptance lolos. Sisa: rebrand nama/logo kalau/ketika aset final sudah ada, custom domain opsional)_

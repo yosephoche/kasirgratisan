@@ -35,7 +35,8 @@ export const ALL_PERMISSIONS: PermissionKey[] = [
 export interface User {
   id?: number;
   username: string;       // unique, lowercase
-  pinHash: string;        // SHA-256 hex
+  pinHash: string;        // SHA-256 hex, legacy salt = per-device deviceId (not portable cross-device)
+  pinHashV2?: string;     // SHA-256 hex, salt = cloudStoreId (stable across devices of same store)
   name: string;           // display name
   role: 'owner' | 'staff';
   permissions: PermissionKey[]; // owner ignores this (has all)
@@ -918,6 +919,35 @@ class PosDatabase extends Dexie {
           record.syncedAt = null;
         }
       });
+    });
+
+    // v17: `users.pinHashV2` (optional, unindexed) — salt PIN hash pakai cloudStoreId
+    // agar portable lintas device (bug: pinHash lama disalt deviceId per-device, tidak sync).
+    // Tidak butuh .upgrade() — field baru undefined di record lama, dihitung lazy saat login/createUser.
+    this.version(17).stores({
+      categories:        '++id, name, isDeleted, updatedAt, syncedAt',
+      products:          '++id, name, &sku, categoryId, barcode, isDeleted, createdBy, updatedBy, unit, updatedAt, syncedAt',
+      suppliers:         '++id, name, isDeleted, updatedAt, syncedAt',
+      customers:         '++id, name, isDeleted, updatedAt, syncedAt',
+      stockIns:          '++id, productId, materialId, supplierId, date, createdBy, updatedAt, syncedAt',
+      stockOuts:         '++id, productId, date, createdBy, updatedAt, syncedAt',
+      hppHistory:        '++id, productId, materialId, date, syncedAt',
+      paymentMethods:    '++id, name, category, updatedAt, syncedAt',
+      transactions:      '++id, date, &receiptNumber, paymentMethodId, status, orderNumber, createdBy, updatedAt, syncedAt',
+      transactionItems:  '++id, transactionId, productId',
+      storeSettings:     '++id',
+      units:             '++id, &name, isDeleted, updatedAt, syncedAt',
+      users:             '++id, &username, role, isActive, updatedAt, syncedAt',
+      expenseCategories: '++id, name, isDeleted, updatedAt, syncedAt',
+      expenses:          '++id, date, categoryId, paymentMethodId, createdBy, isDeleted, updatedAt, syncedAt',
+      debts:             '++id, &transactionId, customerId, status, createdAt, updatedAt, syncedAt',
+      debtPayments:      '++id, debtId, date, paymentMethodId, createdBy, updatedAt, syncedAt',
+      stockOpnames:      '++id, date, status, createdBy, updatedAt, syncedAt',
+      stockOpnameItems:  '++id, opnameId, productId, [opnameId+productId]',
+      deletedRecords:    '++id, tableName, recordId, deletedAt, syncedAt',
+      productRecipes:    '++id, productId, ingredientMaterialId, isDeleted, updatedAt, syncedAt',
+      overheadConfig:    '++id, isDeleted, updatedAt, syncedAt',
+      materials:         '++id, name, type, isDeleted, updatedAt, syncedAt',
     });
   }
 }

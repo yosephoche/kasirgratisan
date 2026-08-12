@@ -1268,6 +1268,20 @@
     "title": "Employees & Access",
     "desc": "Manage who can access what in your store. The owner always has full access.",
     "addButton": "Add Employee",
+    "inviteButton": "Invite via Link",
+    "invite": {
+      "needsCloudSync": "Enable Cloud Sync in Settings first to create an invite link.",
+      "title": "Employee Invite Link",
+      "desc": "Share this link with your employee. They open it on their own device to pull the store data, then log in with the username & PIN already created.",
+      "generating": "Creating link…",
+      "expiresAt": "Valid until {{time}}",
+      "copyButton": "Copy Link",
+      "copied": "Link copied",
+      "copyFailed": "Failed to copy link",
+      "regenerateButton": "Regenerate Link",
+      "generateFailed": "Failed to create invite link",
+      "revokeFailed": "Failed to revoke the previous link"
+    },
     "card": {
       "owner": "Owner",
       "you": "You",
